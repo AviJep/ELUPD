@@ -87,17 +87,17 @@ export function CRUDManagement() {
     <div className="p-6 max-w-[1600px] mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">
-          CRUD Management
+          Place Management
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          Manage provinces, municipalities, barangays, and compliance records
+          Manage provinces, cities/municipalities, barangays, and compliance records
         </p>
       </div>
 
       <Tabs defaultValue="provinces" className="space-y-6">
         <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="provinces">Provinces</TabsTrigger>
-          <TabsTrigger value="municipalities">Municipalities</TabsTrigger>
+          <TabsTrigger value="municipalities">Cities/Municipalities</TabsTrigger>
           <TabsTrigger value="barangays">Barangays</TabsTrigger>
           <TabsTrigger value="records">Records</TabsTrigger>
         </TabsList>
@@ -304,7 +304,7 @@ export function CRUDManagement() {
                         Barangay Name
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Municipality
+                        City/Municipality
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
                         Province
