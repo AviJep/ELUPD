@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install Frontend Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "windows": {
+        "command": "cd frontend && npm install"
+      },
+      "problemMatcher": [],
+      "detail": "Run this task to install all npm packages for the frontend."
+    },
+    {
+      "label": "Start Frontend Dev Server",
+      "type": "shell",
+      "command": "npm run dev",
+      "windows": {
+        "command": "cd frontend && npm run dev"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Launch Vite development server for the frontend."
+    }
+  ]
+}
