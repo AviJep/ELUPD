@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -28,6 +29,56 @@ const statusConfig = {
 };
 
 export function SystemLogs() {
+  const [logs, setLogs] = useState(systemLogs);
+  const [searchText, setSearchText] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("all-modules");
+  const [statusFilter, setStatusFilter] = useState("all-status");
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      const matchesSearch =
+        log.action.toLowerCase().includes(searchText.toLowerCase()) ||
+        log.user.toLowerCase().includes(searchText.toLowerCase()) ||
+        log.details.toLowerCase().includes(searchText.toLowerCase());
+      const matchesModule =
+        moduleFilter === "all-modules" || log.module === moduleFilter;
+      const matchesStatus =
+        statusFilter === "all-status" || log.status === statusFilter;
+      return matchesSearch && matchesModule && matchesStatus;
+    });
+  }, [logs, searchText, moduleFilter, statusFilter]);
+
+  const exportLogs = () => {
+    const header = [
+      "Timestamp",
+      "User",
+      "Action",
+      "Module",
+      "Status",
+      "Details",
+    ];
+    const csv = [header.join(",")];
+    filteredLogs.forEach((l) => {
+      csv.push([
+        l.timestamp,
+        l.user,
+        l.action,
+        l.module,
+        l.status,
+        l.details,
+      ]
+        .map((v) => `"${v}"`)
+        .join(","));
+    });
+    const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "system-logs.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
       <div className="mb-6">
@@ -71,23 +122,34 @@ export function SystemLogs() {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative md:col-span-2">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input placeholder="Search logs..." className="pl-9" />
+              <Input
+                placeholder="Search logs..."
+                className="pl-9"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
             </div>
-            <Select defaultValue="all-modules">
+            <Select
+              value={moduleFilter}
+              onValueChange={(v) => setModuleFilter(v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Module" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all-modules">All Modules</SelectItem>
-                <SelectItem value="dashboard">Dashboard</SelectItem>
-                <SelectItem value="map">Map Intelligence</SelectItem>
-                <SelectItem value="statistics">Statistics</SelectItem>
-                <SelectItem value="compliance">Compliance</SelectItem>
-                <SelectItem value="data">Data Import/Export</SelectItem>
-                <SelectItem value="crud">CRUD Management</SelectItem>
+                <SelectItem value="Dashboard">Dashboard</SelectItem>
+                <SelectItem value="Map Intelligence">Map Intelligence</SelectItem>
+                <SelectItem value="Statistics">Statistics</SelectItem>
+                <SelectItem value="Compliance">Compliance</SelectItem>
+                <SelectItem value="Data Import/Export">Data Import/Export</SelectItem>
+                <SelectItem value="CRUD Management">CRUD Management</SelectItem>
               </SelectContent>
             </Select>
-            <Select defaultValue="all-status">
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -99,10 +161,18 @@ export function SystemLogs() {
               </SelectContent>
             </Select>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => window.location.reload()}
+              >
                 <RefreshCw className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="flex-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={exportLogs}
+              >
                 <Download className="h-4 w-4" />
               </Button>
             </div>
@@ -143,7 +213,7 @@ export function SystemLogs() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {systemLogs.map((log) => (
+                {filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-gray-50">
                     <td className="py-3 px-4 text-xs text-gray-700 font-mono">
                       {log.timestamp}

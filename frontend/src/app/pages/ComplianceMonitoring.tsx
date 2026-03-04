@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
@@ -26,6 +27,77 @@ const statusConfig = {
 };
 
 export function ComplianceMonitoring() {
+  const [searchText, setSearchText] = useState("");
+  const [provinceFilter, setProvinceFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<"municipality" | "province" | "percentage" | "lastUpdate">("municipality");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [selectedItem, setSelectedItem] = useState<typeof complianceData[0] | null>(null);
+
+  const filteredData = useMemo(() => {
+    let data = complianceData.filter((item) => {
+      const matchesProvince =
+        provinceFilter === "all" ||
+        item.province.toLowerCase().includes(provinceFilter.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" || item.status === statusFilter;
+      const matchesSearch =
+        item.municipality.toLowerCase().includes(searchText.toLowerCase());
+      return matchesProvince && matchesStatus && matchesSearch;
+    });
+
+    data.sort((a, b) => {
+      let aVal: any = a[sortKey as any];
+      let bVal: any = b[sortKey as any];
+      if (sortKey === "percentage") {
+        aVal = a.percentage;
+        bVal = b.percentage;
+      }
+      if (sortKey === "lastUpdate") {
+        aVal = new Date(a.lastUpdate).getTime();
+        bVal = new Date(b.lastUpdate).getTime();
+      }
+      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return data;
+  }, [searchText, provinceFilter, statusFilter, sortKey, sortOrder]);
+
+  const downloadCSV = (rows: typeof complianceData) => {
+    const header = [
+      "Municipality",
+      "Province",
+      "Barangays",
+      "Status",
+      "Compliance %",
+      "Last Update",
+    ];
+    const csv = [header.join(",")];
+
+    rows.forEach((r) => {
+      csv.push(
+        [
+          r.municipality,
+          r.province,
+          r.barangays,
+          r.status,
+          r.percentage,
+          r.lastUpdate,
+        ].join(",")
+      );
+    });
+
+    const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "compliance-report.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
       <div className="mb-6">
@@ -46,20 +118,29 @@ export function ComplianceMonitoring() {
               <Input
                 placeholder="Search municipality..."
                 className="pl-9"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
               />
             </div>
-            <Select defaultValue="all">
+            <Select
+              value={provinceFilter}
+              onValueChange={(v) => setProvinceFilter(v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Province" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Provinces</SelectItem>
-                <SelectItem value="negros-occidental">Negros Occidental</SelectItem>
-                <SelectItem value="negros-oriental">Negros Oriental</SelectItem>
-                <SelectItem value="siquijor">Siquijor</SelectItem>
+                <SelectItem value="Negros Occidental">
+                  Negros Occidental
+                </SelectItem>
+                <SelectItem value="Negros Oriental">
+                  Negros Oriental
+                </SelectItem>
+                <SelectItem value="Siquijor">Siquijor</SelectItem>
               </SelectContent>
             </Select>
-            <Select defaultValue="all">
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -71,9 +152,12 @@ export function ComplianceMonitoring() {
                 <SelectItem value="expired">Expired</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="w-full">
-              <Filter className="h-4 w-4 mr-2" />
-              Apply Filters
+            <Button
+              className="w-full"
+              onClick={() => downloadCSV(filteredData)}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Report
             </Button>
           </div>
         </CardContent>
@@ -85,20 +169,28 @@ export function ComplianceMonitoring() {
           <CardTitle className="text-base font-semibold text-gray-900">
             Compliance Status Table
           </CardTitle>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                  <th
+                    className="text-left py-3 px-4 text-sm font-semibold text-gray-700 cursor-pointer"
+                    onClick={() => {
+                      setSortKey("municipality");
+                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                    }}
+                  >
                     Municipality
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                  <th
+                    className="text-left py-3 px-4 text-sm font-semibold text-gray-700 cursor-pointer"
+                    onClick={() => {
+                      setSortKey("province");
+                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                    }}
+                  >
                     Province
                   </th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
@@ -107,10 +199,22 @@ export function ComplianceMonitoring() {
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
                     Status
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                  <th
+                    className="text-left py-3 px-4 text-sm font-semibold text-gray-700 cursor-pointer"
+                    onClick={() => {
+                      setSortKey("percentage");
+                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                    }}
+                  >
                     Compliance %
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                  <th
+                    className="text-left py-3 px-4 text-sm font-semibold text-gray-700 cursor-pointer"
+                    onClick={() => {
+                      setSortKey("lastUpdate");
+                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                    }}
+                  >
                     Last Update
                   </th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
@@ -119,8 +223,12 @@ export function ComplianceMonitoring() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {complianceData.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
+                {filteredData.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setSelectedItem(item)}
+                  >
                     <td className="py-3 px-4 text-sm font-medium text-gray-900">
                       {item.municipality}
                     </td>
@@ -133,9 +241,17 @@ export function ComplianceMonitoring() {
                     <td className="py-3 px-4">
                       <Badge
                         variant="outline"
-                        className={statusConfig[item.status as keyof typeof statusConfig].color}
+                        className={
+                          statusConfig[
+                            item.status as keyof typeof statusConfig
+                          ].color
+                        }
                       >
-                        {statusConfig[item.status as keyof typeof statusConfig].label}
+                        {
+                          statusConfig[
+                            item.status as keyof typeof statusConfig
+                          ].label
+                        }
                       </Badge>
                     </td>
                     <td className="py-3 px-4">
@@ -161,7 +277,11 @@ export function ComplianceMonitoring() {
                       {item.lastUpdate}
                     </td>
                     <td className="py-3 px-4">
-                      <Button variant="link" size="sm" className="text-blue-600 p-0">
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="text-blue-600 p-0"
+                      >
                         View Details
                       </Button>
                     </td>
@@ -172,6 +292,125 @@ export function ComplianceMonitoring() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Details drawer/modal */}
+      {selectedItem && (
+        <div>
+          <div
+            className="fixed inset-0 bg-black/30 z-[1000]"
+            onClick={() => setSelectedItem(null)}
+          />
+          <div className="fixed right-0 top-16 bottom-0 w-96 bg-white shadow-2xl z-[1001] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Details</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedItem(null)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {Object.entries(selectedItem).map(([key, value]) => {
+                if (key === "status") {
+                  return (
+                    <div key={key} className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700 capitalize">
+                        {key}
+                      </span>
+                      <Select
+                        value={selectedItem.status}
+                        onValueChange={(v) =>
+                          setSelectedItem({ ...selectedItem, status: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="updated">Updated</SelectItem>
+                          <SelectItem value="updating">Updating</SelectItem>
+                          <SelectItem value="non-compliance">
+                            Non-Compliant
+                          </SelectItem>
+                          <SelectItem value="expired">Expired</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                }
+                if (key === "percentage") {
+                  return (
+                    <div key={key} className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700 capitalize">
+                        {key}
+                      </span>
+                      <Input
+                        type="number"
+                        value={selectedItem.percentage}
+                        onChange={(e) =>
+                          setSelectedItem({
+                            ...selectedItem,
+                            percentage: Number(e.target.value),
+                          })
+                        }
+                        className="w-20"
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <div key={key} className="flex justify-between">
+                    <span className="text-sm font-medium text-gray-700 capitalize">
+                      {key.replace(/([A-Z])/g, " $1")}
+                    </span>
+                    <span className="text-sm text-gray-900">{value as any}</span>
+                  </div>
+                );
+              })}
+              <div className="flex gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // save changes back into data array
+                    const idx = complianceData.findIndex(
+                      (i) => i.id === selectedItem.id
+                    );
+                    if (idx !== -1) {
+                      complianceData[idx] = selectedItem;
+                    }
+                    setSelectedItem(null);
+                  }}
+                >
+                  Save
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Mock archive action - remove item
+                    const index = complianceData.findIndex(
+                      (i) => i.id === selectedItem.id
+                    );
+                    if (index !== -1) {
+                      complianceData.splice(index, 1);
+                      setSelectedItem(null);
+                    }
+                  }}
+                >
+                  Archive
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedItem(null)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Alert Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">

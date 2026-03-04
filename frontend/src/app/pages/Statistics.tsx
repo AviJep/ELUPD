@@ -64,7 +64,6 @@ export function Statistics() {
                 <Area
                   type="monotone"
                   dataKey="compliant"
-                  stackId="1"
                   stroke="#10b981"
                   fill="#10b981"
                   fillOpacity={0.6}
@@ -72,7 +71,6 @@ export function Statistics() {
                 <Area
                   type="monotone"
                   dataKey="nonCompliant"
-                  stackId="1"
                   stroke="#ef4444"
                   fill="#ef4444"
                   fillOpacity={0.6}
@@ -80,7 +78,6 @@ export function Statistics() {
                 <Area
                   type="monotone"
                   dataKey="expired"
-                  stackId="1"
                   stroke="#6b7280"
                   fill="#6b7280"
                   fillOpacity={0.6}
@@ -185,32 +182,41 @@ export function Statistics() {
         </Card>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards computed from data */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-3xl font-bold">77%</div>
+            <div className="text-3xl font-bold">
+              {Math.round(
+                (complianceRate[0].value /
+                  (complianceRate[0].value +
+                    complianceRate[1].value +
+                    complianceRate[2].value)) * 100
+              )}%
+            </div>
             <div className="text-sm opacity-90 mt-1">Compliance Rate</div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-3xl font-bold">62</div>
+            <div className="text-3xl font-bold">
+              {provinceComparison.reduce((sum, p) => sum + p.municipalities, 0)}
+            </div>
             <div className="text-sm opacity-90 mt-1">Total Municipalities</div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-3xl font-bold">1,847</div>
+            <div className="text-3xl font-bold">{"N/A"}</div>
             <div className="text-sm opacity-90 mt-1">Total Barangays</div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-3xl font-bold">92</div>
+            <div className="text-3xl font-bold">{updateFrequency.reduce((s, u) => s + u.updates, 0)}</div>
             <div className="text-sm opacity-90 mt-1">Updates This Week</div>
           </CardContent>
         </Card>

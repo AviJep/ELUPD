@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -5,6 +6,7 @@ import { Badge } from "../components/ui/badge";
 import { Search, RotateCcw, Trash2, Eye } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 
+// initial archived records; will be managed in component state
 const archivedRecords = [
   { id: 1, municipality: "Bacolod City", province: "Negros Occidental", records: 45, archivedDate: "2025-12-15", reason: "Data migration" },
   { id: 2, municipality: "Silay City", province: "Negros Occidental", records: 28, archivedDate: "2025-11-20", reason: "System update" },
@@ -15,6 +17,44 @@ const archivedRecords = [
 ];
 
 export function ArchiveCenter() {
+  const [records, setRecords] = useState(archivedRecords);
+  const [searchText, setSearchText] = useState("");
+  const [provinceFilter, setProvinceFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"recent" | "oldest" | "name">("recent");
+  const [selectedRecord, setSelectedRecord] = useState<typeof archivedRecords[0] | null>(null);
+
+  const filteredRecords = useMemo(() => {
+    let list = records.filter((r) =>
+      r.municipality.toLowerCase().includes(searchText.toLowerCase())
+    );
+    if (provinceFilter !== "all") {
+      list = list.filter((r) => r.province === provinceFilter);
+    }
+    if (sortBy === "name") {
+      list = [...list].sort((a, b) =>
+        a.municipality.localeCompare(b.municipality)
+      );
+    } else if (sortBy === "oldest") {
+      list = [...list].sort(
+        (a, b) => new Date(a.archivedDate).getTime() - new Date(b.archivedDate).getTime()
+      );
+    } else {
+      list = [...list].sort(
+        (a, b) => new Date(b.archivedDate).getTime() - new Date(a.archivedDate).getTime()
+      );
+    }
+    return list;
+  }, [records, searchText, provinceFilter, sortBy]);
+
+  const handleRestore = (id: number) => {
+    setRecords((prev) => prev.filter((r) => r.id !== id));
+  };
+  const handleDelete = (id: number) => {
+    if (window.confirm("Permanently delete this archive?")) {
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+    }
+  };
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
       <div className="mb-6">
@@ -58,20 +98,32 @@ export function ArchiveCenter() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative md:col-span-2">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input placeholder="Search archives..." className="pl-9" />
+              <Input
+                placeholder="Search archives..."
+                className="pl-9"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
             </div>
-            <Select defaultValue="all">
+            <Select
+              value={provinceFilter}
+              onValueChange={(v) => setProvinceFilter(v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Province" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Provinces</SelectItem>
-                <SelectItem value="negros-occidental">Negros Occidental</SelectItem>
-                <SelectItem value="negros-oriental">Negros Oriental</SelectItem>
-                <SelectItem value="siquijor">Siquijor</SelectItem>
+                <SelectItem value="Negros Occidental">
+                  Negros Occidental
+                </SelectItem>
+                <SelectItem value="Negros Oriental">
+                  Negros Oriental
+                </SelectItem>
+                <SelectItem value="Siquijor">Siquijor</SelectItem>
               </SelectContent>
             </Select>
-            <Select defaultValue="recent">
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
               <SelectTrigger>
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -118,8 +170,12 @@ export function ArchiveCenter() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {archivedRecords.map((record) => (
-                  <tr key={record.id} className="hover:bg-gray-50">
+                {filteredRecords.map((record) => (
+                  <tr
+                    key={record.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setSelectedRecord(record)}
+                  >
                     <td className="py-3 px-4 text-sm font-medium text-gray-900">
                       {record.municipality}
                     </td>
@@ -143,6 +199,10 @@ export function ArchiveCenter() {
                           variant="ghost"
                           size="sm"
                           className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedRecord(record);
+                          }}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -150,6 +210,10 @@ export function ArchiveCenter() {
                           variant="ghost"
                           size="sm"
                           className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRestore(record.id);
+                          }}
                         >
                           <RotateCcw className="h-4 w-4" />
                         </Button>
@@ -157,6 +221,10 @@ export function ArchiveCenter() {
                           variant="ghost"
                           size="sm"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(record.id);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -169,6 +237,58 @@ export function ArchiveCenter() {
           </div>
         </CardContent>
       </Card>
+
+      {/* details drawer/modal */}
+      {selectedRecord && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-[1001]"
+            onClick={() => setSelectedRecord(null)}
+          />
+          <div className="fixed right-0 top-16 bottom-0 w-96 bg-white shadow-2xl z-[1002] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Archive Details</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedRecord(null)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {Object.entries(selectedRecord).map(([k, v]) => (
+                <div key={k} className="flex justify-between">
+                  <span className="text-sm font-medium text-gray-700 capitalize">
+                    {k.replace(/([A-Z])/g, " $1")}
+                  </span>
+                  <span className="text-sm text-gray-900">{v as any}</span>
+                </div>
+              ))}
+              <div className="flex gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleRestore(selectedRecord.id);
+                    setSelectedRecord(null);
+                  }}
+                >
+                  Restore
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleDelete(selectedRecord.id);
+                    setSelectedRecord(null);
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Archive Analytics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">

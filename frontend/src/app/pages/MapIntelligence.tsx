@@ -115,10 +115,11 @@ export function MapIntelligence() {
     const geoJsonLayer = L.geoJSON(filteredGeoJSON as any, {
       style: (feature) => ({
         fillColor: statusColors[feature?.properties.status as StatusType] || "#6b7280",
-        weight: 2,
-        opacity: 1,
-        color: "#ffffff",
-        fillOpacity: 0.6,
+        color: statusColors[feature?.properties.status as StatusType] || "#6b7280",
+        weight: 1,
+        opacity: 0.9,
+        fillOpacity: 0.8,
+        fillRule: "evenodd",
       }),
       onEachFeature: (feature, layer) => {
         layer.on({

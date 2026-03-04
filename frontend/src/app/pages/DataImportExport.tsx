@@ -4,10 +4,15 @@ import { Button } from "../components/ui/button";
 import { Upload, FileSpreadsheet, FileText, Download, CheckCircle2, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import * as XLSX from "xlsx"; // used to parse excel and csv files
 
 export function DataImportExport() {
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [parsedData, setParsedData] = useState<any[]>([]);
+
+  const [exportProvince, setExportProvince] = useState("all");
+  const [exportStatus, setExportStatus] = useState("all");
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -18,17 +23,67 @@ export function DataImportExport() {
     setIsDragging(false);
   };
 
+  const parseFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target?.result;
+      if (!data) return;
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      setParsedData((prev) => [...prev, ...json]);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files).map((f) => f.name);
-    setUploadedFiles([...uploadedFiles, ...files]);
+    const files = Array.from(e.dataTransfer.files);
+    files.forEach((f) => parseFile(f));
+    setUploadedFiles((prev) => [...prev, ...files.map((f) => f.name)]);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const files = Array.from(e.target.files).map((f) => f.name);
-      setUploadedFiles([...uploadedFiles, ...files]);
+      const files = Array.from(e.target.files);
+      files.forEach((f) => parseFile(f));
+      setUploadedFiles((prev) => [...prev, ...files.map((f) => f.name)]);
+    }
+  };
+
+  const exportFilteredData = (format: "csv" | "xlsx" | "pdf") => {
+    let data = parsedData;
+    if (exportProvince !== "all") {
+      data = data.filter(
+        (r: any) => r.Province === exportProvince || r.province === exportProvince
+      );
+    }
+    if (exportStatus !== "all") {
+      data = data.filter(
+        (r: any) => r.Status === exportStatus || r.status === exportStatus
+      );
+    }
+
+    // simple csv export for demonstration
+    if (format === "csv" || format === "xlsx") {
+      const header = Object.keys(data[0] || {}).join(",");
+      const csvRows = data.map((row: any) =>
+        Object.values(row)
+          .map((v) => `"${v}"`)
+          .join(",")
+      );
+      const csv = [header, ...csvRows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `export.${format === "xlsx" ? "xlsx" : "csv"}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (format === "pdf") {
+      // stub pdf export (could implement using jsPDF) 
+      alert("PDF export not implemented yet");
     }
   };
 
@@ -100,7 +155,7 @@ export function DataImportExport() {
                   {uploadedFiles.map((file, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items:center justify-between p-3 bg-gray-50 rounded-lg"
                     >
                       <div className="flex items-center gap-3">
                         <FileSpreadsheet className="h-5 w-5 text-green-600" />
@@ -117,6 +172,39 @@ export function DataImportExport() {
                     </div>
                   ))}
                   <Button className="w-full mt-4">Import All Files</Button>
+
+                  {/* preview of parsed data */}
+                  {parsedData.length > 0 && (
+                    <div className="mt-6">
+                      <div className="text-sm font-medium text-gray-900 mb-2">
+                        Parsed rows ({parsedData.length})
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr>
+                              {Object.keys(parsedData[0]).map((h) => (
+                                <th key={h} className="py-1 px-2 font-semibold">
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {parsedData.slice(0, 5).map((row, i) => (
+                              <tr key={i} className="border-t">
+                                {Object.values(row).map((v, j) => (
+                                  <td key={j} className="py-1 px-2">
+                                    {String(v)}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -223,15 +311,15 @@ export function DataImportExport() {
                   <label className="text-sm font-medium text-gray-700">
                     Province Filter
                   </label>
-                  <Select defaultValue="all">
+                  <Select value={exportProvince} onValueChange={setExportProvince}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Provinces</SelectItem>
-                      <SelectItem value="negros-occidental">Negros Occidental</SelectItem>
-                      <SelectItem value="negros-oriental">Negros Oriental</SelectItem>
-                      <SelectItem value="siquijor">Siquijor</SelectItem>
+                      <SelectItem value="Negros Occidental">Negros Occidental</SelectItem>
+                      <SelectItem value="Negros Oriental">Negros Oriental</SelectItem>
+                      <SelectItem value="Siquijor">Siquijor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -239,7 +327,7 @@ export function DataImportExport() {
                   <label className="text-sm font-medium text-gray-700">
                     Status Filter
                   </label>
-                  <Select defaultValue="all">
+                  <Select value={exportStatus} onValueChange={setExportStatus}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -267,7 +355,11 @@ export function DataImportExport() {
                 <p className="text-sm text-gray-600 mb-4">
                   Export data as .xlsx file
                 </p>
-                <Button className="w-full" variant="outline">
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => exportFilteredData("xlsx")}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Export Excel
                 </Button>
@@ -283,7 +375,11 @@ export function DataImportExport() {
                 <p className="text-sm text-gray-600 mb-4">
                   Export data as .csv file
                 </p>
-                <Button className="w-full" variant="outline">
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => exportFilteredData("csv")}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
                 </Button>
@@ -299,7 +395,11 @@ export function DataImportExport() {
                 <p className="text-sm text-gray-600 mb-4">
                   Export as formatted report
                 </p>
-                <Button className="w-full" variant="outline">
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => exportFilteredData("pdf")}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Export PDF
                 </Button>

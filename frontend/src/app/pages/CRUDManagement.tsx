@@ -109,10 +109,63 @@ export function CRUDManagement() {
               <CardTitle className="text-base font-semibold text-gray-900">
                 Provinces Management
               </CardTitle>
-              <Button onClick={() => createProvince({ id: Date.now(), name: "New Province", municipalities: 0, barangays: 0, status: "active" })}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Province
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => {
+                    const name = prompt("Enter new province name:");
+                    if (name) {
+                      createProvince({
+                        id: Date.now(),
+                        name,
+                        municipalities: 0,
+                        barangays: 0,
+                        status: "active",
+                      });
+                      const addMun = window.confirm(
+                        "Do you want to add a municipality immediately?"
+                      );
+                      if (addMun) {
+                        const mName = prompt("Municipality name:");
+                        if (mName) {
+                          createMunicipality({
+                            id: Date.now(),
+                            name: mName,
+                            province: name,
+                            barangays: 0,
+                            status: "active",
+                            lastUpdate: new Date().toISOString().split("T")[0],
+                          });
+                        }
+                      }
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Province
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const pName = prompt("Enter province name for new municipality:");
+                    if (pName) {
+                      const mName = prompt("Municipality name:");
+                      if (mName) {
+                        createMunicipality({
+                          id: Date.now(),
+                          name: mName,
+                          province: pName,
+                          barangays: 0,
+                          status: "active",
+                          lastUpdate: new Date().toISOString().split("T")[0],
+                        });
+                        alert("Municipality added. It will appear in lists immediately.");
+                      }
+                    }
+                  }}
+                >
+                  Add Municipality
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
