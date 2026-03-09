@@ -18,6 +18,7 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         >
           <Menu className="h-5 w-5 text-gray-700" />
         </Button>
+
       </div>
     </header>
   );

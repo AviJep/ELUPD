@@ -72,6 +72,20 @@ function init() {
   `);
 }
 
+function resetDatabase() {
+  db.exec(`
+    BEGIN;
+    DELETE FROM system_logs;
+    DELETE FROM archived_records;
+    DELETE FROM compliance_records;
+    DELETE FROM barangays;
+    DELETE FROM municipalities;
+    DELETE FROM provinces;
+    COMMIT;
+  `);
+}
+
 init();
 
+export { resetDatabase };
 export default db;

@@ -7,21 +7,32 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { mockStats, mockProvinces, mockMunicipalities, mockRecentActivities } from "../utils/mock-data";
 
-// Mock data
 const statsData = {
-  activeCities: 42,
-  totalMunicipalities: 62,
-  compliant: 48,
-  nonCompliant: 12,
-  expired: 2,
+  activeCities: mockMunicipalities.length,
+  totalMunicipalities: mockProvinces.reduce((sum, prov) => sum + prov.municipalities, 0),
+  compliant: mockStats.updated,
+  nonCompliant: mockStats.nonCompliant,
+  expired: mockStats.expired,
 };
 
-const barChartData = [
-  { province: "Negros Occidental", updated: 28, updating: 8, nonCompliant: 6, expired: 1 },
-  { province: "Negros Oriental", updated: 18, updating: 4, nonCompliant: 5, expired: 1 },
-  { province: "Siquijor", updated: 5, updating: 1, nonCompliant: 1, expired: 0 },
-];
+const alertStats = {
+  criticalNonCompliance: mockMunicipalities.filter((m) => m.status === "non-compliance").length,
+  pendingUpdates: mockStats.updating,
+  expiredRecords: mockStats.expired,
+};
+
+const barChartData = mockProvinces.map((province) => {
+  const provinceMunicipalities = mockMunicipalities.filter((m) => m.province === province.name);
+  return {
+    province: province.name,
+    updated: provinceMunicipalities.filter((m) => m.status === "updated").length,
+    updating: provinceMunicipalities.filter((m) => m.status === "updating").length,
+    nonCompliant: provinceMunicipalities.filter((m) => m.status === "non-compliance").length,
+    expired: provinceMunicipalities.filter((m) => m.status === "expired").length,
+  };
+});
 
 const lineChartData = [
   { month: "Oct", updates: 45 },
@@ -33,10 +44,10 @@ const lineChartData = [
 ];
 
 const pieChartData = [
-  { name: "Updated", value: 48, color: "#10b981" },
-  { name: "Updating", value: 12, color: "#f59e0b" },
-  { name: "Non-Compliant", value: 8, color: "#ef4444" },
-  { name: "Expired", value: 2, color: "#6b7280" },
+  { name: "Updated", value: mockStats.updated, color: "#10b981" },
+  { name: "Updating", value: mockStats.updating, color: "#f59e0b" },
+  { name: "Non-Compliant", value: mockStats.nonCompliant, color: "#ef4444" },
+  { name: "Expired", value: mockStats.expired, color: "#6b7280" },
 ];
 
 const heatmapData = [
@@ -47,13 +58,7 @@ const heatmapData = [
   { barangay: "Victorias City", jan: 90, feb: 92, mar: 95 },
 ];
 
-const recentActivities = [
-  { location: "Bacolod City", action: "Status updated to Compliant", time: "2 hours ago" },
-  { location: "Dumaguete City", action: "Barangay data imported", time: "5 hours ago" },
-  { location: "Silay City", action: "Compliance report generated", time: "1 day ago" },
-  { location: "Siquijor", action: "New barangay added", time: "2 days ago" },
-  { location: "Talisay City", action: "Status marked as Updating", time: "3 days ago" },
-];
+const recentActivities = mockRecentActivities;
 
 export function Dashboard() {
   return (
@@ -103,7 +108,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">{statsData.compliant}</div>
-            <p className="text-xs text-gray-500 mt-1">77% compliance rate</p>
+            <p className="text-xs text-gray-500 mt-1">Compliance breakdown</p>
           </CardContent>
         </Card>
 
@@ -130,6 +135,33 @@ export function Dashboard() {
           <CardContent>
             <div className="text-3xl font-bold text-red-600">{statsData.expired}</div>
             <p className="text-xs text-gray-500 mt-1">Requires update</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Alert Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card className="bg-red-50 border-red-200 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-red-700">{alertStats.criticalNonCompliance}</div>
+            <div className="text-sm text-red-600 mt-1">Critical Non-Compliance</div>
+            <div className="text-xs text-red-500 mt-2">Requires immediate action</div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-orange-50 border-orange-200 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-orange-700">{alertStats.pendingUpdates}</div>
+            <div className="text-sm text-orange-600 mt-1">Pending Updates</div>
+            <div className="text-xs text-orange-500 mt-2">In progress</div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-50 border-gray-200 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-gray-700">{alertStats.expiredRecords}</div>
+            <div className="text-sm text-gray-600 mt-1">Expired Records</div>
+            <div className="text-xs text-gray-500 mt-2">Needs renewal</div>
           </CardContent>
         </Card>
       </div>

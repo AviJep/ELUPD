@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import logo from "../../assets/logo.png";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -53,9 +54,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">DHSUD</span>
-              </div>
+              <img
+                src={logo}
+                alt="DHSUD logo"
+                className="h-10 w-10 rounded-lg object-contain"
+              />
               <div>
                 <p className="text-sm font-semibold text-gray-900">DHSUD</p>
                 <p className="text-xs text-gray-500">HREDR System</p>

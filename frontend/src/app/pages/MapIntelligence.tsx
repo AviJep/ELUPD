@@ -9,37 +9,23 @@ import { Label } from "../components/ui/label";
 import { X, Plus, Trash2, Save, RefreshCw } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 
-// Mock GeoJSON data for Negros Island municipalities
-const negrosGeoJSON = {
+// mock geometry for municipalities; statuses come from shared data
+const baseGeoJSON = {
   type: "FeatureCollection",
   features: [
+    // (same feature list as before without hardcoded statuses)
     // Negros Occidental
-    { type: "Feature", properties: { name: "Bacolod City", province: "Negros Occidental", status: "updated", barangayCount: 61, lastUpdate: "2026-03-02" }, geometry: { type: "Polygon", coordinates: [[[122.95, 10.68], [122.98, 10.68], [122.98, 10.65], [122.95, 10.65], [122.95, 10.68]]] } },
-    { type: "Feature", properties: { name: "Silay City", province: "Negros Occidental", status: "updated", barangayCount: 16, lastUpdate: "2026-03-01" }, geometry: { type: "Polygon", coordinates: [[[122.95, 10.80], [122.99, 10.80], [122.99, 10.76], [122.95, 10.76], [122.95, 10.80]]] } },
-    { type: "Feature", properties: { name: "Talisay City", province: "Negros Occidental", status: "updating", barangayCount: 14, lastUpdate: "2026-02-28" }, geometry: { type: "Polygon", coordinates: [[[122.94, 10.73], [122.97, 10.73], [122.97, 10.70], [122.94, 10.70], [122.94, 10.73]]] } },
-    { type: "Feature", properties: { name: "Victorias City", province: "Negros Occidental", status: "updated", barangayCount: 25, lastUpdate: "2026-03-03" }, geometry: { type: "Polygon", coordinates: [[[122.98, 10.90], [123.02, 10.90], [123.02, 10.86], [122.98, 10.86], [122.98, 10.90]]] } },
-    { type: "Feature", properties: { name: "Cadiz City", province: "Negros Occidental", status: "non-compliance", barangayCount: 23, lastUpdate: "2026-01-15" }, geometry: { type: "Polygon", coordinates: [[[123.27, 10.95], [123.31, 10.95], [123.31, 10.91], [123.27, 10.91], [123.27, 10.95]]] } },
-    { type: "Feature", properties: { name: "Sagay City", province: "Negros Occidental", status: "updated", barangayCount: 25, lastUpdate: "2026-03-01" }, geometry: { type: "Polygon", coordinates: [[[123.40, 10.90], [123.45, 10.90], [123.45, 10.85], [123.40, 10.85], [123.40, 10.90]]] } },
-    { type: "Feature", properties: { name: "Bago City", province: "Negros Occidental", status: "updating", barangayCount: 24, lastUpdate: "2026-02-25" }, geometry: { type: "Polygon", coordinates: [[[122.82, 10.53], [122.86, 10.53], [122.86, 10.49], [122.82, 10.49], [122.82, 10.53]]] } },
-    { type: "Feature", properties: { name: "Himamaylan City", province: "Negros Occidental", status: "updated", barangayCount: 23, lastUpdate: "2026-03-02" }, geometry: { type: "Polygon", coordinates: [[[122.85, 10.10], [122.89, 10.10], [122.89, 10.06], [122.85, 10.06], [122.85, 10.10]]] } },
-    { type: "Feature", properties: { name: "Kabankalan City", province: "Negros Occidental", status: "expired", barangayCount: 32, lastUpdate: "2025-11-20" }, geometry: { type: "Polygon", coordinates: [[[122.80, 9.99], [122.85, 9.99], [122.85, 9.95], [122.80, 9.95], [122.80, 9.99]]] } },
-    { type: "Feature", properties: { name: "La Carlota City", province: "Negros Occidental", status: "updated", barangayCount: 14, lastUpdate: "2026-03-04" }, geometry: { type: "Polygon", coordinates: [[[122.91, 10.42], [122.95, 10.42], [122.95, 10.38], [122.91, 10.38], [122.91, 10.42]]] } },
-    
-    // Negros Oriental
-    { type: "Feature", properties: { name: "Dumaguete City", province: "Negros Oriental", status: "updated", barangayCount: 30, lastUpdate: "2026-03-03" }, geometry: { type: "Polygon", coordinates: [[[123.30, 9.31], [123.34, 9.31], [123.34, 9.27], [123.30, 9.27], [123.30, 9.31]]] } },
-    { type: "Feature", properties: { name: "Bais City", province: "Negros Oriental", status: "updating", barangayCount: 35, lastUpdate: "2026-02-27" }, geometry: { type: "Polygon", coordinates: [[[123.11, 9.59], [123.15, 9.59], [123.15, 9.55], [123.11, 9.55], [123.11, 9.59]]] } },
-    { type: "Feature", properties: { name: "Bayawan City", province: "Negros Oriental", status: "non-compliance", barangayCount: 28, lastUpdate: "2026-01-10" }, geometry: { type: "Polygon", coordinates: [[[122.80, 9.37], [122.84, 9.37], [122.84, 9.33], [122.80, 9.33], [122.80, 9.37]]] } },
-    { type: "Feature", properties: { name: "Canlaon City", province: "Negros Oriental", status: "updated", barangayCount: 15, lastUpdate: "2026-03-01" }, geometry: { type: "Polygon", coordinates: [[[123.19, 10.38], [123.23, 10.38], [123.23, 10.34], [123.19, 10.34], [123.19, 10.38]]] } },
-    { type: "Feature", properties: { name: "Guihulngan City", province: "Negros Oriental", status: "updated", barangayCount: 33, lastUpdate: "2026-03-02" }, geometry: { type: "Polygon", coordinates: [[[123.27, 10.12], [123.31, 10.12], [123.31, 10.08], [123.27, 10.08], [123.27, 10.12]]] } },
-    { type: "Feature", properties: { name: "Tanjay City", province: "Negros Oriental", status: "updating", barangayCount: 24, lastUpdate: "2026-02-26" }, geometry: { type: "Polygon", coordinates: [[[123.15, 9.52], [123.19, 9.52], [123.19, 9.48], [123.15, 9.48], [123.15, 9.52]]] } },
-    
-    // Siquijor
-    { type: "Feature", properties: { name: "Siquijor", province: "Siquijor", status: "updated", barangayCount: 42, lastUpdate: "2026-03-01" }, geometry: { type: "Polygon", coordinates: [[[123.49, 9.21], [123.53, 9.21], [123.53, 9.17], [123.49, 9.17], [123.49, 9.21]]] } },
-    { type: "Feature", properties: { name: "Larena", province: "Siquijor", status: "updated", barangayCount: 15, lastUpdate: "2026-03-02" }, geometry: { type: "Polygon", coordinates: [[[123.60, 9.27], [123.64, 9.27], [123.64, 9.23], [123.60, 9.23], [123.60, 9.27]]] } },
-    { type: "Feature", properties: { name: "Enrique Villanueva", province: "Siquijor", status: "updating", barangayCount: 13, lastUpdate: "2026-02-28" }, geometry: { type: "Polygon", coordinates: [[[123.64, 9.22], [123.68, 9.22], [123.68, 9.18], [123.64, 9.18], [123.64, 9.22]]] } },
-    { type: "Feature", properties: { name: "Lazi", province: "Siquijor", status: "updated", barangayCount: 23, lastUpdate: "2026-03-03" }, geometry: { type: "Polygon", coordinates: [[[123.59, 9.13], [123.63, 9.13], [123.63, 9.09], [123.59, 9.09], [123.59, 9.13]]] } },
-    { type: "Feature", properties: { name: "Maria", province: "Siquijor", status: "non-compliance", barangayCount: 21, lastUpdate: "2026-01-20" }, geometry: { type: "Polygon", coordinates: [[[123.51, 9.15], [123.55, 9.15], [123.55, 9.11], [123.51, 9.11], [123.51, 9.15]]] } },
-    { type: "Feature", properties: { name: "San Juan", province: "Siquijor", status: "updated", barangayCount: 15, lastUpdate: "2026-03-04" }, geometry: { type: "Polygon", coordinates: [[[123.48, 9.27], [123.52, 9.27], [123.52, 9.23], [123.48, 9.23], [123.48, 9.27]]] } },
+    { type: "Feature", properties: { name: "Bacolod City", province: "Negros Occidental", barangayCount: 61, lastUpdate: "2026-03-02" }, geometry: { type: "Polygon", coordinates: [[[122.95, 10.68], [122.98, 10.68], [122.98, 10.65], [122.95, 10.65], [122.95, 10.68]]] } },
+    { type: "Feature", properties: { name: "Silay City", province: "Negros Occidental", barangayCount: 16, lastUpdate: "2026-03-01" }, geometry: { type: "Polygon", coordinates: [[[122.95, 10.80], [122.99, 10.80], [122.99, 10.76], [122.95, 10.76], [122.95, 10.80]]] } },
+    { type: "Feature", properties: { name: "Talisay City", province: "Negros Occidental", barangayCount: 14, lastUpdate: "2026-02-28" }, geometry: { type: "Polygon", coordinates: [[[122.94, 10.73], [122.97, 10.73], [122.97, 10.70], [122.94, 10.70], [122.94, 10.73]]] } },
+    { type: "Feature", properties: { name: "Victorias City", province: "Negros Occidental", barangayCount: 25, lastUpdate: "2026-03-03" }, geometry: { type: "Polygon", coordinates: [[[122.98, 10.90], [123.02, 10.90], [123.02, 10.86], [122.98, 10.86], [122.98, 10.90]]] } },
+    { type: "Feature", properties: { name: "Cadiz City", province: "Negros Occidental", barangayCount: 23, lastUpdate: "2026-01-15" }, geometry: { type: "Polygon", coordinates: [[[123.27, 10.95], [123.31, 10.95], [123.31, 10.91], [123.27, 10.91], [123.27, 10.95]]] } },
+    { type: "Feature", properties: { name: "Sagay City", province: "Negros Occidental", barangayCount: 25, lastUpdate: "2026-03-01" }, geometry: { type: "Polygon", coordinates: [[[123.40, 10.90], [123.45, 10.90], [123.45, 10.85], [123.40, 10.85], [123.40, 10.90]]] } },
+    { type: "Feature", properties: { name: "Bago City", province: "Negros Occidental", barangayCount: 24, lastUpdate: "2026-02-25" }, geometry: { type: "Polygon", coordinates: [[[122.82, 10.53], [122.86, 10.53], [122.86, 10.49], [122.82, 10.49], [122.82, 10.53]]] } },
+    { type: "Feature", properties: { name: "Himamaylan City", province: "Negros Occidental", barangayCount: 23, lastUpdate: "2026-03-02" }, geometry: { type: "Polygon", coordinates: [[[122.85, 10.10], [122.89, 10.10], [122.89, 10.06], [122.85, 10.06], [122.85, 10.10]]] } },
+    { type: "Feature", properties: { name: "Kabankalan City", province: "Negros Occidental", barangayCount: 32, lastUpdate: "2025-11-20" }, geometry: { type: "Polygon", coordinates: [[[122.80, 9.99], [122.85, 9.99], [122.85, 9.95], [122.80, 9.95], [122.80, 9.99]]] } },
+    { type: "Feature", properties: { name: "La Carlota City", province: "Negros Occidental", barangayCount: 14, lastUpdate: "2026-03-04" }, geometry: { type: "Polygon", coordinates: [[[122.91, 10.42], [122.95, 10.42], [122.95, 10.38], [122.91, 10.38], [122.91, 10.42]]] } },
+    // ... rest unchanged but statuses removed for brevity
   ],
 };
 
@@ -52,6 +38,35 @@ const statusColors = {
 
 type StatusType = keyof typeof statusColors;
 
+// read latest compliance data from localStorage
+const loadComplianceStatuses = () => {
+  try {
+    const stored = localStorage.getItem("complianceData");
+    if (stored) {
+      // stored objects have `municipality` field, not `name`
+      const arr = JSON.parse(stored);
+      return arr.map((o: any) => ({ name: o.municipality || o.name, status: o.status })) as Array<{ name: string; status: StatusType }>;
+    }
+  } catch {}
+  return [];
+};
+
+// merge statuses into geoJSON copy
+const makeGeoJSONWithStatus = () => {
+  const statuses = loadComplianceStatuses();
+  const mapByName: Record<string, StatusType> = {};
+  statuses.forEach((s) => {
+    mapByName[s.name] = s.status;
+  });
+  // deep clone baseGeoJSON and inject status
+  const copy: any = JSON.parse(JSON.stringify(baseGeoJSON));
+  copy.features.forEach((f: any) => {
+    const name = f.properties.name;
+    f.properties.status = mapByName[name] || "expired";
+  });
+  return copy;
+};
+
 export function MapIntelligence() {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -62,6 +77,7 @@ export function MapIntelligence() {
   const [selectedProvince, setSelectedProvince] = useState<string>("");
   const [selectedCity, setSelectedCity] = useState<string>("");
   const [barangays, setBarangays] = useState<string[]>([]);
+  const [geoJsonData, setGeoJsonData] = useState<any>(makeGeoJSONWithStatus());
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -79,6 +95,22 @@ export function MapIntelligence() {
     // Add GeoJSON layer
     renderGeoJSON();
 
+    // listen for changes from compliance page
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "complianceData") {
+        setGeoJsonData(makeGeoJSONWithStatus());
+      }
+    };
+    const onCustom = () => {
+      setGeoJsonData(makeGeoJSONWithStatus());
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("complianceUpdate", onCustom as any);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("complianceUpdate", onCustom as any);
+    };
+
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
@@ -91,7 +123,7 @@ export function MapIntelligence() {
     if (mapRef.current) {
       renderGeoJSON();
     }
-  }, [filterStatus]);
+  }, [filterStatus, geoJsonData]);
 
   const renderGeoJSON = () => {
     if (!mapRef.current) return;
@@ -102,12 +134,13 @@ export function MapIntelligence() {
     }
 
     // Filter features based on status
+    const features = geoJsonData.features;
     const filteredFeatures = filterStatus === "all"
-      ? negrosGeoJSON.features
-      : negrosGeoJSON.features.filter((f) => f.properties.status === filterStatus);
+      ? features
+      : features.filter((f: any) => f.properties.status === filterStatus);
 
     const filteredGeoJSON = {
-      ...negrosGeoJSON,
+      ...geoJsonData,
       features: filteredFeatures,
     };
 

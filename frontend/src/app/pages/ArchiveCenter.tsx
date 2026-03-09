@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -6,22 +6,25 @@ import { Badge } from "../components/ui/badge";
 import { Search, RotateCcw, Trash2, Eye } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 
-// initial archived records; will be managed in component state
-const archivedRecords = [
-  { id: 1, municipality: "Bacolod City", province: "Negros Occidental", records: 45, archivedDate: "2025-12-15", reason: "Data migration" },
-  { id: 2, municipality: "Silay City", province: "Negros Occidental", records: 28, archivedDate: "2025-11-20", reason: "System update" },
-  { id: 3, municipality: "Dumaguete City", province: "Negros Oriental", records: 32, archivedDate: "2025-10-10", reason: "Record consolidation" },
-  { id: 4, municipality: "Cadiz City", province: "Negros Occidental", records: 19, archivedDate: "2025-09-05", reason: "Expired records" },
-  { id: 5, municipality: "Siquijor", province: "Siquijor", records: 15, archivedDate: "2025-08-12", reason: "Manual archive" },
-  { id: 6, municipality: "Talisay City", province: "Negros Occidental", records: 22, archivedDate: "2025-07-28", reason: "Data cleanup" },
-];
+// helper to persist archive list across pages
+const loadArchives = () => {
+  try {
+    return JSON.parse(localStorage.getItem("archivedCompliance") || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const saveArchives = (arr: any[]) => {
+  localStorage.setItem("archivedCompliance", JSON.stringify(arr));
+};
 
 export function ArchiveCenter() {
-  const [records, setRecords] = useState(archivedRecords);
+  const [records, setRecords] = useState<any[]>(() => loadArchives());
   const [searchText, setSearchText] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "name">("recent");
-  const [selectedRecord, setSelectedRecord] = useState<typeof archivedRecords[0] | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
 
   const filteredRecords = useMemo(() => {
     let list = records.filter((r) =>
@@ -47,13 +50,32 @@ export function ArchiveCenter() {
   }, [records, searchText, provinceFilter, sortBy]);
 
   const handleRestore = (id: number) => {
-    setRecords((prev) => prev.filter((r) => r.id !== id));
+    setRecords((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      saveArchives(updated);
+      return updated;
+    });
   };
   const handleDelete = (id: number) => {
     if (window.confirm("Permanently delete this archive?")) {
-      setRecords((prev) => prev.filter((r) => r.id !== id));
+      setRecords((prev) => {
+        const updated = prev.filter((r) => r.id !== id);
+        saveArchives(updated);
+        return updated;
+      });
     }
   };
+
+  // keep in sync if another tab adds/removes
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "archivedCompliance") {
+        setRecords(loadArchives());
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">

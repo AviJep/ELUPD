@@ -4,20 +4,151 @@ import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Search, Filter, Download } from "lucide-react";
+import { Search, Filter, Download, X, Eye, Edit, Archive } from "lucide-react";
 
-const complianceData = [
-  { id: 1, municipality: "Bacolod City", province: "Negros Occidental", barangays: 61, status: "updated", lastUpdate: "2026-03-02", percentage: 98 },
-  { id: 2, municipality: "Dumaguete City", province: "Negros Oriental", barangays: 30, status: "updated", lastUpdate: "2026-03-03", percentage: 96 },
-  { id: 3, municipality: "Silay City", province: "Negros Occidental", barangays: 16, status: "updated", lastUpdate: "2026-03-01", percentage: 94 },
-  { id: 4, municipality: "Cadiz City", province: "Negros Occidental", barangays: 23, status: "non-compliance", lastUpdate: "2026-01-15", percentage: 45 },
-  { id: 5, municipality: "Bayawan City", province: "Negros Oriental", barangays: 28, status: "non-compliance", lastUpdate: "2026-01-10", percentage: 52 },
-  { id: 6, municipality: "Talisay City", province: "Negros Occidental", barangays: 14, status: "updating", lastUpdate: "2026-02-28", percentage: 78 },
-  { id: 7, municipality: "Bago City", province: "Negros Occidental", barangays: 24, status: "updating", lastUpdate: "2026-02-25", percentage: 72 },
-  { id: 8, municipality: "Kabankalan City", province: "Negros Occidental", barangays: 32, status: "expired", lastUpdate: "2025-11-20", percentage: 35 },
-  { id: 9, municipality: "Maria", province: "Siquijor", barangays: 21, status: "non-compliance", lastUpdate: "2026-01-20", percentage: 48 },
-  { id: 10, municipality: "Siquijor", province: "Siquijor", barangays: 42, status: "updated", lastUpdate: "2026-03-01", percentage: 97 },
+const initialComplianceData = [
+  {
+    id: 1,
+    municipality: "Bacolod City",
+    province: "Negros Occidental",
+    barangays: 61,
+    status: "updated",
+    lastUpdate: "2026-03-02",
+    percentage: 98,
+    contactName: "John Doe",
+    position: "City Mayor",
+    email: "john.doe@bacolod.gov.ph",
+    contactNumber: "(034) 123-4567",
+    remarks: "All records submitted and verified.",
+  },
+  {
+    id: 2,
+    municipality: "Dumaguete City",
+    province: "Negros Oriental",
+    barangays: 30,
+    status: "updated",
+    lastUpdate: "2026-03-03",
+    percentage: 96,
+    contactName: "Jane Smith",
+    position: "City Planning Officer",
+    email: "jane.smith@dumaguete.gov.ph",
+    contactNumber: "(035) 765-4321",
+    remarks: "Awaiting final compliance report.",
+  },
+  {
+    id: 3,
+    municipality: "Silay City",
+    province: "Negros Occidental",
+    barangays: 16,
+    status: "updated",
+    lastUpdate: "2026-03-01",
+    percentage: 94,
+    contactName: "Ricardo Cruz",
+    position: "City Treasurer",
+    email: "ricardo.cruz@silay.gov.ph",
+    contactNumber: "(034) 987-6543",
+    remarks: "Minor updates pending review.",
+  },
+  {
+    id: 4,
+    municipality: "Cadiz City",
+    province: "Negros Occidental",
+    barangays: 23,
+    status: "non-compliance",
+    lastUpdate: "2026-01-15",
+    percentage: 45,
+    contactName: "Maria Lopez",
+    position: "City Legal Counsel",
+    email: "maria.lopez@cadiz.gov.ph",
+    contactNumber: "(034) 555-0123",
+    remarks: "Mayor's office awaiting further guidance.",
+  },
+  {
+    id: 5,
+    municipality: "Bayawan City",
+    province: "Negros Oriental",
+    barangays: 28,
+    status: "non-compliance",
+    lastUpdate: "2026-01-10",
+    percentage: 52,
+    contactName: "Allan Reyes",
+    position: "Municipal Administrator",
+    email: "allan.reyes@bayawan.gov.ph",
+    contactNumber: "(035) 222-3344",
+    remarks: "Pending submission of missing documents.",
+  },
+  {
+    id: 6,
+    municipality: "Talisay City",
+    province: "Negros Occidental",
+    barangays: 14,
+    status: "updating",
+    lastUpdate: "2026-02-28",
+    percentage: 78,
+    contactName: "Carlos Mendoza",
+    position: "City Planning Officer",
+    email: "carlos.mendoza@talisay.gov.ph",
+    contactNumber: "(034) 333-4455",
+    remarks: "Finalizing the compliance report.",
+  },
+  {
+    id: 7,
+    municipality: "Bago City",
+    province: "Negros Occidental",
+    barangays: 24,
+    status: "updating",
+    lastUpdate: "2026-02-25",
+    percentage: 72,
+    contactName: "Elena Rivera",
+    position: "Municipal Health Officer",
+    email: "elena.rivera@bagocity.gov.ph",
+    contactNumber: "(034) 444-5566",
+    remarks: "Mayor's office coordinating with barangay captains.",
+  },
+  {
+    id: 8,
+    municipality: "Kabankalan City",
+    province: "Negros Occidental",
+    barangays: 32,
+    status: "expired",
+    lastUpdate: "2025-11-20",
+    percentage: 35,
+    contactName: "Rafael Santos",
+    position: "City Engineer",
+    email: "rafael.santos@kabankalan.gov.ph",
+    contactNumber: "(034) 555-6677",
+    remarks: "Compliance data expired; resubmission required.",
+  },
+  {
+    id: 9,
+    municipality: "Maria",
+    province: "Siquijor",
+    barangays: 21,
+    status: "non-compliance",
+    lastUpdate: "2026-01-20",
+    percentage: 48,
+    contactName: "Teresa Gomez",
+    position: "Municipal Health Officer",
+    email: "teresa.gomez@maria.gov.ph",
+    contactNumber: "(035) 888-9900",
+    remarks: "Requesting extension for completed reports.",
+  },
+  {
+    id: 10,
+    municipality: "Siquijor",
+    province: "Siquijor",
+    barangays: 42,
+    status: "updated",
+    lastUpdate: "2026-03-01",
+    percentage: 97,
+    contactName: "Antonio Perez",
+    position: "Municipal Administrator",
+    email: "antonio.perez@siquijor.gov.ph",
+    contactNumber: "(035) 777-1234",
+    remarks: "All mayor's office clearances secured.",
+  },
 ];
+
 
 const statusConfig = {
   updated: { label: "Updated", color: "bg-green-100 text-green-800 border-green-300" },
@@ -32,10 +163,57 @@ export function ComplianceMonitoring() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortKey, setSortKey] = useState<"municipality" | "province" | "percentage" | "lastUpdate">("municipality");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedItem, setSelectedItem] = useState<typeof complianceData[0] | null>(null);
+  // store compliance data in state and localStorage so map can read updated statuses
+  const loadCompliance = () => {
+    try {
+      const stored = localStorage.getItem("complianceData");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return initialComplianceData;
+  };
+  const [data, setData] = useState<typeof initialComplianceData>(loadCompliance());
+  const [selectedItem, setSelectedItem] = useState<typeof initialComplianceData[0] | null>(null);
+  const [editItem, setEditItem] = useState<typeof initialComplianceData[0] | null>(null);
+
+  // action handlers
+  const handleView = (item: typeof initialComplianceData[0]) => {
+    setSelectedItem(item);
+    setEditItem(null);
+  };
+
+  const handleEdit = (item: typeof initialComplianceData[0]) => {
+    setSelectedItem(item);
+    setEditItem(item);
+  };
+
+  // persist archives in localStorage under key 'archivedCompliance'
+  const saveArchiveItem = (item: typeof initialComplianceData[0]) => {
+    try {
+      const existing =
+        JSON.parse(localStorage.getItem("archivedCompliance") || "[]") || [];
+      existing.push(item);
+      localStorage.setItem("archivedCompliance", JSON.stringify(existing));
+    } catch (e) {
+      console.error("failed to save archive", e);
+    }
+  };
+
+  const handleArchive = (item: typeof initialComplianceData[0]) => {
+    setData((prev) => {
+      const updated = prev.filter((i) => i.id !== item.id);
+      localStorage.setItem("complianceData", JSON.stringify(updated));
+      window.dispatchEvent(new Event("complianceUpdate"));
+      return updated;
+    });
+    saveArchiveItem(item);
+    setSelectedItem(null);
+    if (editItem?.id === item.id) {
+      setEditItem(null);
+    }
+  };
 
   const filteredData = useMemo(() => {
-    let data = complianceData.filter((item) => {
+    let filtered = data.filter((item) => {
       const matchesProvince =
         provinceFilter === "all" ||
         item.province.toLowerCase().includes(provinceFilter.toLowerCase());
@@ -46,7 +224,7 @@ export function ComplianceMonitoring() {
       return matchesProvince && matchesStatus && matchesSearch;
     });
 
-    data.sort((a, b) => {
+    filtered.sort((a, b) => {
       let aVal: any = a[sortKey as any];
       let bVal: any = b[sortKey as any];
       if (sortKey === "percentage") {
@@ -62,13 +240,18 @@ export function ComplianceMonitoring() {
       return 0;
     });
 
-    return data;
-  }, [searchText, provinceFilter, statusFilter, sortKey, sortOrder]);
+    return filtered;
+  }, [searchText, provinceFilter, statusFilter, sortKey, sortOrder, data]);
 
-  const downloadCSV = (rows: typeof complianceData) => {
+  const downloadCSV = (rows: typeof initialComplianceData) => {
     const header = [
       "Municipality",
       "Province",
+      "Name",
+      "Position",
+      "Email",
+      "Contact Number",
+      "Remarks",
       "Barangays",
       "Status",
       "Compliance %",
@@ -81,6 +264,11 @@ export function ComplianceMonitoring() {
         [
           r.municipality,
           r.province,
+          r.contactName,
+          r.position,
+          r.email,
+          r.contactNumber,
+          r.remarks,
           r.barangays,
           r.status,
           r.percentage,
@@ -194,6 +382,21 @@ export function ComplianceMonitoring() {
                     Province
                   </th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Name
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Position
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Email
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Contact Number
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Remarks
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
                     Barangays
                   </th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
@@ -227,13 +430,28 @@ export function ComplianceMonitoring() {
                   <tr
                     key={item.id}
                     className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => setSelectedItem(item)}
+                    onClick={() => handleView(item)}
                   >
                     <td className="py-3 px-4 text-sm font-medium text-gray-900">
                       {item.municipality}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-700">
                       {item.province}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-700">
+                      {item.contactName}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-700">
+                      {item.position}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-700">
+                      {item.email}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-700">
+                      {item.contactNumber}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-700">
+                      {item.remarks}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-700">
                       {item.barangays}
@@ -277,13 +495,41 @@ export function ComplianceMonitoring() {
                       {item.lastUpdate}
                     </td>
                     <td className="py-3 px-4">
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="text-blue-600 p-0"
-                      >
-                        View Details
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600 hover:bg-blue-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleView(item);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-green-600 hover:bg-green-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(item);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleArchive(item);
+                          }}
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -293,14 +539,16 @@ export function ComplianceMonitoring() {
         </CardContent>
       </Card>
 
-      {/* Details drawer/modal */}
+      {/* Details modal */}
       {selectedItem && (
-        <div>
+        <div className="fixed inset-0 flex items-center justify-center z-[1000]">
+          {/* backdrop */}
           <div
-            className="fixed inset-0 bg-black/30 z-[1000]"
+            className="absolute inset-0 bg-black/30"
             onClick={() => setSelectedItem(null)}
           />
-          <div className="fixed right-0 top-16 bottom-0 w-96 bg-white shadow-2xl z-[1001] overflow-y-auto p-6">
+
+          <div className="relative bg-white rounded-lg shadow-xl w-11/12 max-w-lg p-6 z-[1001]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Details</h2>
               <Button
@@ -313,17 +561,32 @@ export function ComplianceMonitoring() {
             </div>
             <div className="space-y-3">
               {Object.entries(selectedItem).map(([key, value]) => {
+                const inEdit = editItem && editItem.id === selectedItem.id;
+                const readOnly = key === "id";
+
+                const rowClass = "flex items-center gap-2";
+                const labelClass = "w-1/3 text-sm font-medium text-gray-700 capitalize";
+                const inputClass = "w-2/3";
+
                 if (key === "status") {
                   return (
-                    <div key={key} className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700 capitalize">
-                        {key}
-                      </span>
+                    <div key={key} className={rowClass}>
+                      <span className={labelClass}>{key}</span>
                       <Select
-                        value={selectedItem.status}
-                        onValueChange={(v) =>
-                          setSelectedItem({ ...selectedItem, status: v })
-                        }
+                        value={inEdit ? editItem.status : selectedItem.status}
+                        onValueChange={(v) => {
+                          // update selectedItem for immediate feedback
+                          if (selectedItem) {
+                            setSelectedItem({ ...selectedItem, status: v });
+                          }
+                          if (!inEdit && selectedItem) {
+                            // automatically enter edit mode when user interacts
+                            setEditItem({ ...selectedItem, status: v });
+                          } else if (inEdit && editItem) {
+                            setEditItem({ ...editItem, status: v });
+                          }
+                        }}
+                        className={inputClass}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -340,61 +603,79 @@ export function ComplianceMonitoring() {
                     </div>
                   );
                 }
-                if (key === "percentage") {
+
+                if (inEdit) {
+                  if (key === "percentage") {
+                    return (
+                      <div key={key} className={rowClass}>
+                        <span className={labelClass}>{key}</span>
+                        <Input
+                          type="number"
+                          value={editItem.percentage}
+                          onChange={(e) =>
+                            setEditItem({
+                              ...editItem,
+                              percentage: Number(e.target.value),
+                            })
+                          }
+                          className={inputClass + " w-1/4"}
+                        />
+                      </div>
+                    );
+                  }
+
+                  // generic editable field
                   return (
-                    <div key={key} className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700 capitalize">
-                        {key}
+                    <div key={key} className={rowClass}>
+                      <span className={labelClass}>
+                        {key.replace(/([A-Z])/g, " $1")}
                       </span>
                       <Input
-                        type="number"
-                        value={selectedItem.percentage}
+                        value={(editItem as any)[key] as any}
                         onChange={(e) =>
-                          setSelectedItem({
-                            ...selectedItem,
-                            percentage: Number(e.target.value),
-                          })
+                          setEditItem({ ...editItem, [key]: e.target.value })
                         }
-                        className="w-20"
+                        disabled={readOnly}
+                        className={inputClass}
                       />
                     </div>
                   );
                 }
+
+                // view mode
                 return (
-                  <div key={key} className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-700 capitalize">
+                  <div key={key} className={rowClass}>
+                    <span className={labelClass}>
                       {key.replace(/([A-Z])/g, " $1")}
                     </span>
-                    <span className="text-sm text-gray-900">{value as any}</span>
+                    <span className="text-sm text-gray-900 w-2/3">{value as any}</span>
                   </div>
                 );
               })}
               <div className="flex gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    // save changes back into data array
-                    const idx = complianceData.findIndex(
-                      (i) => i.id === selectedItem.id
-                    );
-                    if (idx !== -1) {
-                      complianceData[idx] = selectedItem;
-                    }
-                    setSelectedItem(null);
-                  }}
-                >
-                  Save
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    // Mock archive action - remove item
-                    const index = complianceData.findIndex(
-                      (i) => i.id === selectedItem.id
-                    );
-                    if (index !== -1) {
-                      complianceData.splice(index, 1);
+                {editItem && editItem.id === selectedItem.id && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setData((prev) =>
+                        prev.map((i) => (i.id === editItem.id ? editItem : i))
+                      );
                       setSelectedItem(null);
+                      setEditItem(null);
+                    }}
+                  >
+                    Save
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Are you sure you want to archive this entry?"
+                      )
+                    ) {
+                      handleArchive(selectedItem);
                     }
                   }}
                 >
@@ -402,7 +683,10 @@ export function ComplianceMonitoring() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setSelectedItem(null)}
+                  onClick={() => {
+                    setSelectedItem(null);
+                    setEditItem(null);
+                  }}
                 >
                   Close
                 </Button>
