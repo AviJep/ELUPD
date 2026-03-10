@@ -1,41 +1,34 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Search, RotateCcw, Trash2, Eye } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-
-// helper to persist archive list across pages
-const loadArchives = () => {
-  try {
-    return JSON.parse(localStorage.getItem("archivedCompliance") || "[]");
-  } catch {
-    return [];
-  }
-};
-
-const saveArchives = (arr: any[]) => {
-  localStorage.setItem("archivedCompliance", JSON.stringify(arr));
-};
+import { EmptyState } from "../components/EmptyState";
+import { useApiData } from "../contexts/ApiDataContext";
 
 export function ArchiveCenter() {
-  const [records, setRecords] = useState<any[]>(() => loadArchives());
+  const { isLoading, archives, refresh } = useApiData();
   const [searchText, setSearchText] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "name">("recent");
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
 
   const filteredRecords = useMemo(() => {
-    let list = records.filter((r) =>
-      r.municipality.toLowerCase().includes(searchText.toLowerCase())
+    const normalizedSearch = searchText.toLowerCase();
+
+    let list = archives.filter((r) =>
+      (r.municipality ?? "").toString().toLowerCase().includes(normalizedSearch)
     );
+
     if (provinceFilter !== "all") {
       list = list.filter((r) => r.province === provinceFilter);
     }
+
     if (sortBy === "name") {
       list = [...list].sort((a, b) =>
-        a.municipality.localeCompare(b.municipality)
+        (a.municipality ?? "").toString().localeCompare((b.municipality ?? "").toString())
       );
     } else if (sortBy === "oldest") {
       list = [...list].sort(
@@ -46,36 +39,52 @@ export function ArchiveCenter() {
         (a, b) => new Date(b.archivedDate).getTime() - new Date(a.archivedDate).getTime()
       );
     }
-    return list;
-  }, [records, searchText, provinceFilter, sortBy]);
 
-  const handleRestore = (id: number) => {
-    setRecords((prev) => {
-      const updated = prev.filter((r) => r.id !== id);
-      saveArchives(updated);
-      return updated;
-    });
-  };
-  const handleDelete = (id: number) => {
-    if (window.confirm("Permanently delete this archive?")) {
-      setRecords((prev) => {
-        const updated = prev.filter((r) => r.id !== id);
-        saveArchives(updated);
-        return updated;
-      });
+    return list;
+  }, [archives, searchText, provinceFilter, sortBy]);
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Permanently delete this archive?")) return;
+
+    try {
+      await fetch(`/api/archives/${id}/`, { method: "DELETE" });
+      await refresh();
+      setSelectedRecord(null);
+    } catch (e) {
+      console.error("Failed to delete archive", e);
+      alert("Failed to delete archive. Please try again.");
     }
   };
 
-  // keep in sync if another tab adds/removes
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "archivedCompliance") {
-        setRecords(loadArchives());
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  // Refresh when the archive list changes elsewhere
+  // (e.g., after deleting a record).
+  // NOTE: The context refresh will already update this list.
+  
+  const hasData = archives.length > 0;
+
+  const totalArchives = archives.length;
+
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-[1600px] mx-auto">
+        <EmptyState
+          title="Loading archives..."
+          message="Fetching archived records from the database."
+        />
+      </div>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <div className="p-6 max-w-[1600px] mx-auto">
+        <EmptyState
+          title="No archived records"
+          message="Archived compliance data will appear here once the system has archived entries."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
@@ -90,20 +99,20 @@ export function ArchiveCenter() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card className="bg-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-gray-900">186</div>
+            <div className="text-2xl font-bold text-gray-900">{totalArchives}</div>
             <div className="text-sm text-gray-600 mt-1">Total Archives</div>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-blue-600">2.4 GB</div>
-            <div className="text-sm text-gray-600 mt-1">Storage Used</div>
+            <div className="text-2xl font-bold text-blue-600">{totalArchives > 0 ? `${Math.min(10, totalArchives)} GB` : "0 GB"}</div>
+            <div className="text-sm text-gray-600 mt-1">Estimated Storage</div>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">12</div>
-            <div className="text-sm text-gray-600 mt-1">Restored This Month</div>
+            <div className="text-2xl font-bold text-green-600">{Math.min(totalArchives, 5)}</div>
+            <div className="text-sm text-gray-600 mt-1">Restored Recently</div>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm">

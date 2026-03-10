@@ -21,6 +21,21 @@
       "isBackground": true,
       "problemMatcher": [],
       "detail": "Launch Vite development server for the frontend."
+    },
+    {
+      "label": "Install Backend Dependencies",
+      "type": "shell",
+      "command": "cd backend && .\.venv\Scripts\python.exe -m pip install -r requirements.txt",
+      "problemMatcher": [],
+      "detail": "Install Python dependencies for the Django backend."
+    },
+    {
+      "label": "Run Django Backend",
+      "type": "shell",
+      "command": "cd backend && .\.venv\Scripts\python.exe manage.py runserver 0.0.0.0:3001",
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Start the Django backend API server."
     }
   ]
 }

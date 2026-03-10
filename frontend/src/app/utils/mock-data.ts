@@ -1,5 +1,5 @@
 /**
- * Mock Data for DHSUD HREDR Compliance Monitoring System
+ * Mock Data for DHSUD HREDR CLUP / PDPFPD Monitoring System
  * 
  * This file contains sample data for development and testing.
  * Replace with real data from your database or API.

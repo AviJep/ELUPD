@@ -1,6 +1,5 @@
-import { Menu, Bell, User } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -18,7 +17,6 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         >
           <Menu className="h-5 w-5 text-gray-700" />
         </Button>
-
       </div>
     </header>
   );

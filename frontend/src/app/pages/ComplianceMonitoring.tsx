@@ -1,278 +1,358 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Search, Filter, Download, X, Eye, Edit, Archive } from "lucide-react";
-
-const initialComplianceData = [
-  {
-    id: 1,
-    municipality: "Bacolod City",
-    province: "Negros Occidental",
-    barangays: 61,
-    status: "updated",
-    lastUpdate: "2026-03-02",
-    percentage: 98,
-    contactName: "John Doe",
-    position: "City Mayor",
-    email: "john.doe@bacolod.gov.ph",
-    contactNumber: "(034) 123-4567",
-    remarks: "All records submitted and verified.",
-  },
-  {
-    id: 2,
-    municipality: "Dumaguete City",
-    province: "Negros Oriental",
-    barangays: 30,
-    status: "updated",
-    lastUpdate: "2026-03-03",
-    percentage: 96,
-    contactName: "Jane Smith",
-    position: "City Planning Officer",
-    email: "jane.smith@dumaguete.gov.ph",
-    contactNumber: "(035) 765-4321",
-    remarks: "Awaiting final compliance report.",
-  },
-  {
-    id: 3,
-    municipality: "Silay City",
-    province: "Negros Occidental",
-    barangays: 16,
-    status: "updated",
-    lastUpdate: "2026-03-01",
-    percentage: 94,
-    contactName: "Ricardo Cruz",
-    position: "City Treasurer",
-    email: "ricardo.cruz@silay.gov.ph",
-    contactNumber: "(034) 987-6543",
-    remarks: "Minor updates pending review.",
-  },
-  {
-    id: 4,
-    municipality: "Cadiz City",
-    province: "Negros Occidental",
-    barangays: 23,
-    status: "non-compliance",
-    lastUpdate: "2026-01-15",
-    percentage: 45,
-    contactName: "Maria Lopez",
-    position: "City Legal Counsel",
-    email: "maria.lopez@cadiz.gov.ph",
-    contactNumber: "(034) 555-0123",
-    remarks: "Mayor's office awaiting further guidance.",
-  },
-  {
-    id: 5,
-    municipality: "Bayawan City",
-    province: "Negros Oriental",
-    barangays: 28,
-    status: "non-compliance",
-    lastUpdate: "2026-01-10",
-    percentage: 52,
-    contactName: "Allan Reyes",
-    position: "Municipal Administrator",
-    email: "allan.reyes@bayawan.gov.ph",
-    contactNumber: "(035) 222-3344",
-    remarks: "Pending submission of missing documents.",
-  },
-  {
-    id: 6,
-    municipality: "Talisay City",
-    province: "Negros Occidental",
-    barangays: 14,
-    status: "updating",
-    lastUpdate: "2026-02-28",
-    percentage: 78,
-    contactName: "Carlos Mendoza",
-    position: "City Planning Officer",
-    email: "carlos.mendoza@talisay.gov.ph",
-    contactNumber: "(034) 333-4455",
-    remarks: "Finalizing the compliance report.",
-  },
-  {
-    id: 7,
-    municipality: "Bago City",
-    province: "Negros Occidental",
-    barangays: 24,
-    status: "updating",
-    lastUpdate: "2026-02-25",
-    percentage: 72,
-    contactName: "Elena Rivera",
-    position: "Municipal Health Officer",
-    email: "elena.rivera@bagocity.gov.ph",
-    contactNumber: "(034) 444-5566",
-    remarks: "Mayor's office coordinating with barangay captains.",
-  },
-  {
-    id: 8,
-    municipality: "Kabankalan City",
-    province: "Negros Occidental",
-    barangays: 32,
-    status: "expired",
-    lastUpdate: "2025-11-20",
-    percentage: 35,
-    contactName: "Rafael Santos",
-    position: "City Engineer",
-    email: "rafael.santos@kabankalan.gov.ph",
-    contactNumber: "(034) 555-6677",
-    remarks: "Compliance data expired; resubmission required.",
-  },
-  {
-    id: 9,
-    municipality: "Maria",
-    province: "Siquijor",
-    barangays: 21,
-    status: "non-compliance",
-    lastUpdate: "2026-01-20",
-    percentage: 48,
-    contactName: "Teresa Gomez",
-    position: "Municipal Health Officer",
-    email: "teresa.gomez@maria.gov.ph",
-    contactNumber: "(035) 888-9900",
-    remarks: "Requesting extension for completed reports.",
-  },
-  {
-    id: 10,
-    municipality: "Siquijor",
-    province: "Siquijor",
-    barangays: 42,
-    status: "updated",
-    lastUpdate: "2026-03-01",
-    percentage: 97,
-    contactName: "Antonio Perez",
-    position: "Municipal Administrator",
-    email: "antonio.perez@siquijor.gov.ph",
-    contactNumber: "(035) 777-1234",
-    remarks: "All mayor's office clearances secured.",
-  },
-];
-
+import { EmptyState } from "../components/EmptyState";
+import { Search, Download, Eye, Edit, Archive } from "lucide-react";
+import * as XLSX from "xlsx";
+import { useApiData } from "../contexts/ApiDataContext";
 
 const statusConfig = {
   updated: { label: "Updated", color: "bg-green-100 text-green-800 border-green-300" },
-  updating: { label: "Updating", color: "bg-orange-100 text-orange-800 border-orange-300" },
+  updating: { label: "For Updating", color: "bg-orange-100 text-orange-800 border-orange-300" },
   "non-compliance": { label: "Non-Compliant", color: "bg-red-100 text-red-800 border-red-300" },
   expired: { label: "Expired", color: "bg-gray-100 text-gray-800 border-gray-300" },
 };
 
 export function ComplianceMonitoring() {
+  const {
+    isLoading,
+    complianceRecords,
+    refresh,
+    updateComplianceRecord,
+    archiveComplianceRecord,
+    addComplianceRecords,
+    resetData,
+  } = useApiData();
+
   const [searchText, setSearchText] = useState("");
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortKey, setSortKey] = useState<"municipality" | "province" | "percentage" | "lastUpdate">("municipality");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  // store compliance data in state and localStorage so map can read updated statuses
-  const loadCompliance = () => {
-    try {
-      const stored = localStorage.getItem("complianceData");
-      if (stored) return JSON.parse(stored);
-    } catch {}
-    return initialComplianceData;
-  };
-  const [data, setData] = useState<typeof initialComplianceData>(loadCompliance());
-  const [selectedItem, setSelectedItem] = useState<typeof initialComplianceData[0] | null>(null);
-  const [editItem, setEditItem] = useState<typeof initialComplianceData[0] | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
 
-  // action handlers
-  const handleView = (item: typeof initialComplianceData[0]) => {
-    setSelectedItem(item);
-    setEditItem(null);
-  };
-
-  const handleEdit = (item: typeof initialComplianceData[0]) => {
-    setSelectedItem(item);
-    setEditItem(item);
-  };
-
-  // persist archives in localStorage under key 'archivedCompliance'
-  const saveArchiveItem = (item: typeof initialComplianceData[0]) => {
-    try {
-      const existing =
-        JSON.parse(localStorage.getItem("archivedCompliance") || "[]") || [];
-      existing.push(item);
-      localStorage.setItem("archivedCompliance", JSON.stringify(existing));
-    } catch (e) {
-      console.error("failed to save archive", e);
-    }
-  };
-
-  const handleArchive = (item: typeof initialComplianceData[0]) => {
-    setData((prev) => {
-      const updated = prev.filter((i) => i.id !== item.id);
-      localStorage.setItem("complianceData", JSON.stringify(updated));
-      window.dispatchEvent(new Event("complianceUpdate"));
-      return updated;
+  const statusOptions = useMemo(() => {
+    const options = new Set<string>(Object.keys(statusConfig));
+    complianceRecords.forEach((record) => {
+      if (record.status) {
+        options.add(record.status.toString());
+      }
     });
-    saveArchiveItem(item);
-    setSelectedItem(null);
-    if (editItem?.id === item.id) {
-      setEditItem(null);
-    }
-  };
+    return Array.from(options);
+  }, [complianceRecords]);
 
   const filteredData = useMemo(() => {
-    let filtered = data.filter((item) => {
-      const matchesProvince =
-        provinceFilter === "all" ||
-        item.province.toLowerCase().includes(provinceFilter.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || item.status === statusFilter;
-      const matchesSearch =
-        item.municipality.toLowerCase().includes(searchText.toLowerCase());
-      return matchesProvince && matchesStatus && matchesSearch;
+    const normalizedSearch = searchText.toLowerCase();
+
+    return complianceRecords
+      .filter((item) => {
+        const municipality = (item.municipality ?? "").toString();
+        const province = (item.province ?? "").toString();
+        const status = (item.status ?? "").toString();
+
+        const matchesProvince =
+          provinceFilter === "all" ||
+          province.toLowerCase().includes(provinceFilter.toLowerCase());
+        const matchesStatus =
+          statusFilter === "all" || status === statusFilter;
+        const matchesSearch = municipality.toLowerCase().includes(normalizedSearch);
+
+        return matchesProvince && matchesStatus && matchesSearch;
+      })
+      .sort((a, b) => {
+        let aVal: any = a[sortKey as any];
+        let bVal: any = b[sortKey as any];
+
+        if (sortKey === "percentage") {
+          aVal = a.percentage ?? 0;
+          bVal = b.percentage ?? 0;
+        }
+        if (sortKey === "lastUpdate") {
+          aVal = new Date(a.lastUpdate ?? 0).getTime();
+          bVal = new Date(b.lastUpdate ?? 0).getTime();
+        }
+
+        if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+        return 0;
+      });
+  }, [searchText, provinceFilter, statusFilter, sortKey, sortOrder, complianceRecords]);
+
+  const hasFilteredData = filteredData.length > 0;
+
+  const handleOpenView = (item: any) => {
+    setSelectedItem(item);
+    setIsEditing(false);
+    setIsAdding(false);
+  };
+
+  const handleOpenEdit = (item: any) => {
+    setSelectedItem(item);
+    setIsEditing(true);
+    setIsAdding(false);
+  };
+
+  const provinceOptions = [
+    "Negros Occidental",
+    "Negros Oriental",
+    "Siquijor",
+  ];
+
+  const municipalityOptions: Record<string, string[]> = {
+    "Negros Occidental": [
+      "City of Bacolod",
+      "City of Bago",
+      "City of Cadiz",
+      // add more if desired
+    ],
+    "Negros Oriental": [
+      "Dumaguete City",
+      "Bayawan City",
+      "Tanjay City",
+      // add more if desired
+    ],
+    Siquijor: [
+      "Municipality of Siquijor",
+      "Municipality of Larena",
+      "Municipality of Enrique Villanueva",
+      // add more if desired
+    ],
+  };
+
+  const handleAddNew = () => {
+    setSelectedItem({
+      province: "Negros Occidental",
+      municipality: municipalityOptions["Negros Occidental"]?.[0] ?? "",
+      planStartYear: undefined,
+      planEndYear: undefined,
+      resolutionNumber: "",
+      approvalDate: "",
+      status: "",
+      hardCopyAvailable: false,
+      softCopyUrl: "",
     });
+    setIsEditing(true);
+    setIsAdding(true);
+  };
 
-    filtered.sort((a, b) => {
-      let aVal: any = a[sortKey as any];
-      let bVal: any = b[sortKey as any];
-      if (sortKey === "percentage") {
-        aVal = a.percentage;
-        bVal = b.percentage;
+  const handleSave = async (updated: any) => {
+    if (isAdding) {
+      await addComplianceRecords([updated]);
+    } else {
+      await updateComplianceRecord(updated);
+    }
+    await refresh();
+    setSelectedItem(null);
+    setIsEditing(false);
+    setIsAdding(false);
+  };
+
+  const handleArchive = (item: any) => {
+    setSelectedItem(item);
+    setConfirmArchive(true);
+  };
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectAll = () => {
+    setSelectedIds(filteredData.map((r) => r.id));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const confirmArchiveRecord = async () => {
+    if (selectedItem) {
+      await archiveComplianceRecord(selectedItem.id);
+      await refresh();
+    }
+    setConfirmArchive(false);
+    setSelectedItem(null);
+  };
+
+  const handleResetData = async () => {
+    if (
+      !window.confirm(
+        "This will clear all compliance data (including archived items) from the app and database. Continue?"
+      )
+    ) {
+      return;
+    }
+
+    await resetData();
+    setSelectedIds([]);
+  };
+
+  const normalizeHeader = (header: string) =>
+    header
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+  const getCellValue = (row: Record<string, any>, ...possibleKeys: string[]) => {
+    for (const key of possibleKeys) {
+      const normalizedKey = normalizeHeader(key);
+      const foundKey = Object.keys(row).find(
+        (k) => normalizeHeader(k) === normalizedKey
+      );
+      if (foundKey) {
+        return row[foundKey];
       }
-      if (sortKey === "lastUpdate") {
-        aVal = new Date(a.lastUpdate).getTime();
-        bVal = new Date(b.lastUpdate).getTime();
+    }
+    return undefined;
+  };
+
+  const normalizeString = (value: unknown) =>
+    value?.toString().trim().toLowerCase() ?? "";
+
+  const handleImportClick = () => {
+    setImportError(null);
+    setImportNotice(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    setImportError(null);
+    setImportNotice(null);
+
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsArrayBuffer(file);
+      });
+
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, {
+        defval: "",
+      });
+
+      if (!rows.length) {
+        setImportError("The selected file contains no rows.");
+        return;
       }
-      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
 
-    return filtered;
-  }, [searchText, provinceFilter, statusFilter, sortKey, sortOrder, data]);
+      const getKey = (province: string, municipality: string) =>
+        `${normalizeString(province)}|${normalizeString(municipality)}`;
 
-  const downloadCSV = (rows: typeof initialComplianceData) => {
+      const existingMap = new Map<string, any>();
+      complianceRecords.forEach((r) => {
+        const key = getKey(r.province ?? "", r.municipality ?? "");
+        existingMap.set(key, r);
+      });
+
+      let added = 0;
+      let updated = 0;
+      const toAdd: any[] = [];
+
+      for (const row of rows) {
+        const hardCopyValue = getCellValue(row, "Hard Copy", "Hard Copy Available");
+
+        const record = {
+          province: getCellValue(row, "Province") ?? "",
+          municipality:
+            getCellValue(row, "City / Municipality", "Municipality") ?? "",
+          planStartYear: Number(
+            getCellValue(row, "Plan Start", "Plan Start Year") ?? ""
+          ) || undefined,
+          planEndYear: Number(
+            getCellValue(row, "Plan End", "Plan End Year") ?? ""
+          ) || undefined,
+          resolutionNumber:
+            getCellValue(row, "Resolution No.", "Resolution Number") ?? "",
+          approvalDate: getCellValue(row, "Approval Date") ?? "",
+          status: getCellValue(row, "CLUP Status", "Status") ?? "",
+          hardCopyAvailable:
+            typeof hardCopyValue === "string"
+              ? hardCopyValue.toLowerCase().startsWith("y")
+              : Boolean(hardCopyValue),
+          softCopyUrl:
+            getCellValue(row, "Soft Copy (PDF)", "Soft Copy", "Soft Copy URL") ?? "",
+        };
+
+        const key = getKey(record.province, record.municipality);
+        const existing = existingMap.get(key);
+        if (existing) {
+          const saved = await updateComplianceRecord({ ...existing, ...record, id: existing.id });
+          if (saved) {
+            updated++;
+          }
+        } else {
+          toAdd.push(record);
+        }
+      }
+
+      if (toAdd.length) {
+        const created = await addComplianceRecords(toAdd);
+        added = created.length;
+      }
+
+      await refresh();
+
+      setImportNotice(
+        `Imported ${added} new record${added === 1 ? "" : "s"} and updated ${updated} existing record${
+          updated === 1 ? "" : "s"
+        }.`
+      );
+    } catch (error) {
+      console.error(error);
+      setImportError("Unable to import file. Make sure it is a valid Excel file.");
+    } finally {
+      if (event.target) {
+        event.target.value = "";
+      }
+    }
+  };
+
+  const downloadCSV = (rows: any[]) => {
     const header = [
-      "Municipality",
       "Province",
-      "Name",
-      "Position",
-      "Email",
-      "Contact Number",
-      "Remarks",
-      "Barangays",
-      "Status",
-      "Compliance %",
-      "Last Update",
+      "Municipality",
+      "Plan Start",
+      "Plan End",
+      "Resolution Number",
+      "Approval Date",
+      "CLUP Status",
+      "Hard Copy Available",
+      "Soft Copy (PDF)",
     ];
     const csv = [header.join(",")];
 
     rows.forEach((r) => {
       csv.push(
         [
-          r.municipality,
-          r.province,
-          r.contactName,
-          r.position,
-          r.email,
-          r.contactNumber,
-          r.remarks,
-          r.barangays,
-          r.status,
-          r.percentage,
-          r.lastUpdate,
+          r.province ?? "",
+          r.municipality ?? "",
+          r.planStartYear ?? "",
+          r.planEndYear ?? "",
+          r.resolutionNumber ?? "",
+          r.approvalDate ?? "",
+          r.status ?? "",
+          r.hardCopyAvailable ? "Yes" : "No",
+          r.softCopyUrl ?? "",
         ].join(",")
       );
     });
@@ -281,23 +361,73 @@ export function ComplianceMonitoring() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "compliance-report.csv";
+    a.download = "clup-directory.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  const downloadTemplate = () => {
+    const row1 = [
+      "",
+      "Province",
+      "City/Municipality",
+      "Planning Period of the Latest Plan",
+      "",
+      "Resolution Number of the Latest Plan",
+      "Approval Date",
+      "CLUP Status",
+      "Hard Copy Availability",
+      "Soft Copy Availability",
+    ];
+
+    const row2 = [
+      "",
+      "",
+      "",
+      "Start Year",
+      "End Year",
+      "",
+      "",
+      "",
+      "",
+      "",
+    ];
+
+    const csv = [row1.join(","), row2.join(",")];
+    const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "clup-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-[1600px] mx-auto">
+        <EmptyState
+          title="Loading CLUP / PDPFPD directory..."
+          message="Fetching records from the database."
+        />
+      </div>
+    );
+  }
+
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Compliance Monitoring
-        </h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Track and monitor compliance status across all regions
-        </p>
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            CLUP / PDPFPD Monitoring
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Track and monitor CLUP/PDPFPD records across all municipalities and cities.
+          </p>
+        </div>
       </div>
 
-      {/* Filters */}
       <Card className="bg-white shadow-sm mb-6">
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -334,28 +464,84 @@ export function ComplianceMonitoring() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="updated">Updated</SelectItem>
-                <SelectItem value="updating">Updating</SelectItem>
-                <SelectItem value="non-compliance">Non-Compliant</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
+                {statusOptions.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {statusConfig[status]?.label ?? status}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Button
-              className="w-full"
-              onClick={() => downloadCSV(filteredData)}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button
+                className="w-full"
+                onClick={() => downloadCSV(filteredData)}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Report
+              </Button>
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={downloadTemplate}>
+                  <span className="mr-2">📄</span>
+                  Download Template
+                </Button>
+                <Button className="flex-1" onClick={handleImportClick}>
+                  <span className="mr-2">📄</span>
+                  Import Excel
+                </Button>
+                <Button className="flex-1" onClick={handleAddNew}>
+                  <span className="mr-2">➕</span>
+                  Add Record
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  variant={selectedIds.length ? "destructive" : "secondary"}
+                  disabled={!selectedIds.length}
+                  onClick={async () => {
+                    if (!selectedIds.length) return;
+                    if (!window.confirm("Archive selected records?")) return;
+                    await Promise.all(
+                      selectedIds.map((id) => archiveComplianceRecord(id))
+                    );
+                    await refresh();
+                    clearSelection();
+                  }}
+                >
+                  <span className="mr-2">🗑️</span>
+                  Archive Selected
+                </Button>
+                <Button
+                  className="flex-1"
+                  variant="destructive"
+                  onClick={handleResetData}
+                >
+                  <span className="mr-2">♻️</span>
+                  Reset Data
+                </Button>
+              </div>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              {importError && (
+                <p className="text-sm text-red-600">{importError}</p>
+              )}
+              {importNotice && (
+                <p className="text-sm text-green-600">{importNotice}</p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Compliance Table */}
       <Card className="bg-white shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base font-semibold text-gray-900">
-            Compliance Status Table
+            CLUP / PDPFPD Status Table
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -363,169 +549,94 @@ export function ComplianceMonitoring() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th
-                    className="text-left py-3 px-4 text-sm font-semibold text-gray-700 cursor-pointer"
-                    onClick={() => {
-                      setSortKey("municipality");
-                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                    }}
-                  >
-                    Municipality
-                  </th>
-                  <th
-                    className="text-left py-3 px-4 text-sm font-semibold text-gray-700 cursor-pointer"
-                    onClick={() => {
-                      setSortKey("province");
-                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                    }}
-                  >
-                    Province
-                  </th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Name
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredData.length > 0 &&
+                        selectedIds.length === filteredData.length
+                      }
+                      onChange={(e) =>
+                        e.target.checked ? selectAll() : clearSelection()
+                      }
+                    />
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Position
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Email
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Contact Number
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Remarks
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Barangays
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Status
-                  </th>
-                  <th
-                    className="text-left py-3 px-4 text-sm font-semibold text-gray-700 cursor-pointer"
-                    onClick={() => {
-                      setSortKey("percentage");
-                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                    }}
-                  >
-                    Compliance %
-                  </th>
-                  <th
-                    className="text-left py-3 px-4 text-sm font-semibold text-gray-700 cursor-pointer"
-                    onClick={() => {
-                      setSortKey("lastUpdate");
-                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                    }}
-                  >
-                    Last Update
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Actions
-                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Province</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">City / Municipality</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Plan Start</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Plan End</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Resolution No.</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Approval Date</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">CLUP Status</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Hard Copy</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Soft Copy</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredData.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleView(item)}
-                  >
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                      {item.municipality}
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={() => toggleSelect(item.id)}
+                      />
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-700">{item.province}</td>
+                    <td className="py-3 px-4 text-sm font-medium text-gray-900">{item.municipality}</td>
+                    <td className="py-3 px-4 text-sm text-gray-700">{item.planStartYear ?? ""}</td>
+                    <td className="py-3 px-4 text-sm text-gray-700">{item.planEndYear ?? ""}</td>
+                    <td className="py-3 px-4 text-sm text-gray-700">{item.resolutionNumber ?? ""}</td>
+                    <td className="py-3 px-4 text-sm text-gray-700">{item.approvalDate ?? ""}</td>
+                    <td className="py-3 px-4">
+                      {(() => {
+                        const statusKey = (item.status ?? "").toString().toLowerCase();
+                        const status = statusConfig[statusKey as keyof typeof statusConfig];
+                        return (
+                          <Badge
+                            variant="outline"
+                            className={
+                              status?.color ?? "bg-gray-100 text-gray-700 border-gray-200"
+                            }
+                          >
+                            {status?.label ?? item.status ?? "Unknown"}
+                          </Badge>
+                        );
+                      })()}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-700">
-                      {item.province}
+                      {item.hardCopyAvailable ? "Yes" : "No"}
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {item.contactName}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {item.position}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {item.email}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {item.contactNumber}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {item.remarks}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {item.barangays}
+                    <td className="py-3 px-4 text-sm text-blue-600">
+                      {item.softCopyUrl ? (
+                        <a href={item.softCopyUrl} target="_blank" rel="noreferrer">
+                          View PDF
+                        </a>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="py-3 px-4">
-                      <Badge
-                        variant="outline"
-                        className={
-                          statusConfig[
-                            item.status as keyof typeof statusConfig
-                          ].color
-                        }
-                      >
-                        {
-                          statusConfig[
-                            item.status as keyof typeof statusConfig
-                          ].label
-                        }
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[100px]">
-                          <div
-                            className={`h-2 rounded-full ${
-                              item.percentage >= 90
-                                ? "bg-green-600"
-                                : item.percentage >= 70
-                                ? "bg-orange-600"
-                                : "bg-red-600"
-                            }`}
-                            style={{ width: `${item.percentage}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-gray-700 min-w-[40px]">
-                          {item.percentage}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {item.lastUpdate}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-blue-600 hover:bg-blue-50"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleView(item);
-                          }}
+                          onClick={() => handleOpenView(item)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-green-600 hover:bg-green-50"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(item);
-                          }}
+                          onClick={() => handleOpenEdit(item)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:bg-red-50"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleArchive(item);
-                          }}
+                          onClick={() => handleArchive(item)}
                         >
                           <Archive className="h-4 w-4" />
                         </Button>
@@ -533,195 +644,259 @@ export function ComplianceMonitoring() {
                     </td>
                   </tr>
                 ))}
+
+                {filteredData.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={11}
+                      className="py-6 text-center text-sm text-gray-500"
+                    >
+                      No matching records.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </CardContent>
       </Card>
 
-      {/* Details modal */}
       {selectedItem && (
         <div className="fixed inset-0 flex items-center justify-center z-[1000]">
-          {/* backdrop */}
           <div
             className="absolute inset-0 bg-black/30"
-            onClick={() => setSelectedItem(null)}
+            onClick={() => {
+              setSelectedItem(null);
+              setIsEditing(false);
+            }}
           />
-
           <div className="relative bg-white rounded-lg shadow-xl w-11/12 max-w-lg p-6 z-[1001]">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Details</h2>
+              <h2 className="text-lg font-semibold">
+                {isAdding ? "Add Record" : isEditing ? "Edit Record" : "View Record"}
+              </h2>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setSelectedItem(null)}
+                onClick={() => {
+                  setSelectedItem(null);
+                  setIsEditing(false);
+                }}
               >
-                <X className="h-5 w-5" />
+                ✕
               </Button>
             </div>
             <div className="space-y-3">
-              {Object.entries(selectedItem).map(([key, value]) => {
-                const inEdit = editItem && editItem.id === selectedItem.id;
-                const readOnly = key === "id";
-
-                const rowClass = "flex items-center gap-2";
-                const labelClass = "w-1/3 text-sm font-medium text-gray-700 capitalize";
-                const inputClass = "w-2/3";
-
-                if (key === "status") {
-                  return (
-                    <div key={key} className={rowClass}>
-                      <span className={labelClass}>{key}</span>
-                      <Select
-                        value={inEdit ? editItem.status : selectedItem.status}
-                        onValueChange={(v) => {
-                          // update selectedItem for immediate feedback
-                          if (selectedItem) {
-                            setSelectedItem({ ...selectedItem, status: v });
-                          }
-                          if (!inEdit && selectedItem) {
-                            // automatically enter edit mode when user interacts
-                            setEditItem({ ...selectedItem, status: v });
-                          } else if (inEdit && editItem) {
-                            setEditItem({ ...editItem, status: v });
-                          }
-                        }}
-                        className={inputClass}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="updated">Updated</SelectItem>
-                          <SelectItem value="updating">Updating</SelectItem>
-                          <SelectItem value="non-compliance">
-                            Non-Compliant
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500">Province</p>
+                  {isEditing ? (
+                    <Select
+                      value={selectedItem.province ?? ""}
+                      onValueChange={(value) => {
+                        const nextMunicipalities = municipalityOptions[value] ?? [];
+                        setSelectedItem({
+                          ...selectedItem,
+                          province: value,
+                          municipality: nextMunicipalities[0] ?? "",
+                        });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {provinceOptions.map((province) => (
+                          <SelectItem key={province} value={province}>
+                            {province}
                           </SelectItem>
-                          <SelectItem value="expired">Expired</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  );
-                }
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-gray-900">{selectedItem.province}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Municipality</p>
+                  {isEditing ? (
+                    <Select
+                      value={selectedItem.municipality ?? ""}
+                      onValueChange={(value) =>
+                        setSelectedItem({ ...selectedItem, municipality: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(municipalityOptions[selectedItem.province ?? ""] ?? []).map(
+                          (mun) => (
+                            <SelectItem key={mun} value={mun}>
+                              {mun}
+                            </SelectItem>
+                          )
+                        )}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-gray-900">{selectedItem.municipality}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Plan Start</p>
+                  {isEditing ? (
+                    <Input
+                      value={selectedItem.planStartYear ?? ""}
+                      onChange={(e) =>
+                        setSelectedItem({
+                          ...selectedItem,
+                          planStartYear: Number(e.target.value),
+                        })
+                      }
+                      type="number"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900">{selectedItem.planStartYear}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Plan End</p>
+                  {isEditing ? (
+                    <Input
+                      value={selectedItem.planEndYear ?? ""}
+                      onChange={(e) =>
+                        setSelectedItem({
+                          ...selectedItem,
+                          planEndYear: Number(e.target.value),
+                        })
+                      }
+                      type="number"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900">{selectedItem.planEndYear}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Resolution No.</p>
+                  {isEditing ? (
+                    <Input
+                      value={selectedItem.resolutionNumber ?? ""}
+                      onChange={(e) =>
+                        setSelectedItem({
+                          ...selectedItem,
+                          resolutionNumber: e.target.value,
+                        })
+                      }
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900">{selectedItem.resolutionNumber}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Approval Date</p>
+                  {isEditing ? (
+                    <Input
+                      value={selectedItem.approvalDate ?? ""}
+                      onChange={(e) =>
+                        setSelectedItem({
+                          ...selectedItem,
+                          approvalDate: e.target.value,
+                        })
+                      }
+                      type="date"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900">{selectedItem.approvalDate}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">CLUP Status</p>
+                  {isEditing ? (
+                    <Select
+                      value={selectedItem.status ?? ""}
+                      onValueChange={(v) =>
+                        setSelectedItem({ ...selectedItem, status: v })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {statusConfig[status]?.label ?? status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-gray-900">{selectedItem.status}</p>
+                  )}
+                </div>
+              </div>
 
-                if (inEdit) {
-                  if (key === "percentage") {
-                    return (
-                      <div key={key} className={rowClass}>
-                        <span className={labelClass}>{key}</span>
-                        <Input
-                          type="number"
-                          value={editItem.percentage}
-                          onChange={(e) =>
-                            setEditItem({
-                              ...editItem,
-                              percentage: Number(e.target.value),
-                            })
-                          }
-                          className={inputClass + " w-1/4"}
-                        />
-                      </div>
-                    );
-                  }
-
-                  // generic editable field
-                  return (
-                    <div key={key} className={rowClass}>
-                      <span className={labelClass}>
-                        {key.replace(/([A-Z])/g, " $1")}
-                      </span>
-                      <Input
-                        value={(editItem as any)[key] as any}
-                        onChange={(e) =>
-                          setEditItem({ ...editItem, [key]: e.target.value })
-                        }
-                        disabled={readOnly}
-                        className={inputClass}
-                      />
-                    </div>
-                  );
-                }
-
-                // view mode
-                return (
-                  <div key={key} className={rowClass}>
-                    <span className={labelClass}>
-                      {key.replace(/([A-Z])/g, " $1")}
-                    </span>
-                    <span className="text-sm text-gray-900 w-2/3">{value as any}</span>
-                  </div>
-                );
-              })}
-              <div className="flex gap-2 mt-6">
-                {editItem && editItem.id === selectedItem.id && (
+              <div className="flex justify-end gap-2 pt-4">
+                {isEditing ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedItem(null);
+                        setIsEditing(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => handleSave(selectedItem)}
+                    >
+                      Save
+                    </Button>
+                  </>
+                ) : (
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setData((prev) =>
-                        prev.map((i) => (i.id === editItem.id ? editItem : i))
-                      );
-                      setSelectedItem(null);
-                      setEditItem(null);
+                      setIsEditing(true);
                     }}
                   >
-                    Save
+                    Edit
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Are you sure you want to archive this entry?"
-                      )
-                    ) {
-                      handleArchive(selectedItem);
-                    }
-                  }}
-                >
-                  Archive
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedItem(null);
-                    setEditItem(null);
-                  }}
-                >
-                  Close
-                </Button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Alert Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-        <Card className="bg-red-50 border-red-200 shadow-sm">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-red-700">3</div>
-            <div className="text-sm text-red-600 mt-1">Critical Non-Compliance</div>
-            <div className="text-xs text-red-500 mt-2">Requires immediate action</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-orange-50 border-orange-200 shadow-sm">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-orange-700">12</div>
-            <div className="text-sm text-orange-600 mt-1">Pending Updates</div>
-            <div className="text-xs text-orange-500 mt-2">In progress</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-50 border-gray-200 shadow-sm">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-gray-700">2</div>
-            <div className="text-sm text-gray-600 mt-1">Expired Records</div>
-            <div className="text-xs text-gray-500 mt-2">Needs renewal</div>
-          </CardContent>
-        </Card>
-      </div>
+      {confirmArchive && selectedItem && (
+        <div className="fixed inset-0 flex items-center justify-center z-[1000]">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setConfirmArchive(false)}
+          />
+          <div className="relative bg-white rounded-lg shadow-xl w-11/12 max-w-md p-6 z-[1001]">
+            <h2 className="text-lg font-semibold">Archive Record?</h2>
+            <p className="text-sm text-gray-600 mt-2">
+              Are you sure you want to archive this record? This cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmArchive(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmArchiveRecord}
+              >
+                Yes, Archive
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,25 +1,12 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Search, Download, RefreshCw } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-
-const systemLogs = [
-  { id: 1, timestamp: "2026-03-04 14:23:45", user: "admin@dhsud.gov.ph", action: "Data Export", module: "Data Import/Export", status: "success", details: "Exported 248 records to Excel" },
-  { id: 2, timestamp: "2026-03-04 13:15:22", user: "officer@dhsud.gov.ph", action: "Status Update", module: "Map Intelligence", status: "success", details: "Updated Bacolod City status to Compliant" },
-  { id: 3, timestamp: "2026-03-04 12:08:11", user: "admin@dhsud.gov.ph", action: "Record Archive", module: "Archive Center", status: "success", details: "Archived 45 outdated records" },
-  { id: 4, timestamp: "2026-03-04 11:42:33", user: "officer@dhsud.gov.ph", action: "Barangay Added", module: "CRUD Management", status: "success", details: "Added new barangay to Dumaguete City" },
-  { id: 5, timestamp: "2026-03-04 10:55:19", user: "system", action: "Data Import", module: "Data Import/Export", status: "success", details: "Imported CSV with 156 records" },
-  { id: 6, timestamp: "2026-03-04 10:12:44", user: "officer@dhsud.gov.ph", action: "Login", module: "Authentication", status: "success", details: "User logged in successfully" },
-  { id: 7, timestamp: "2026-03-04 09:30:28", user: "admin@dhsud.gov.ph", action: "System Backup", module: "System", status: "success", details: "Database backup completed" },
-  { id: 8, timestamp: "2026-03-04 08:45:15", user: "officer@dhsud.gov.ph", action: "Report Generated", module: "Statistics", status: "success", details: "Generated monthly compliance report" },
-  { id: 9, timestamp: "2026-03-03 17:22:03", user: "admin@dhsud.gov.ph", action: "Data Update", module: "Map Intelligence", status: "warning", details: "Partial update - 2 records failed validation" },
-  { id: 10, timestamp: "2026-03-03 16:10:56", user: "system", action: "Auto Sync", module: "System", status: "success", details: "Synchronized map data with database" },
-  { id: 11, timestamp: "2026-03-03 15:33:41", user: "officer@dhsud.gov.ph", action: "Record Delete", module: "CRUD Management", status: "success", details: "Deleted duplicate barangay entry" },
-  { id: 12, timestamp: "2026-03-03 14:18:27", user: "admin@dhsud.gov.ph", action: "Permission Change", module: "User Management", status: "success", details: "Updated user permissions for officer@dhsud.gov.ph" },
-];
+import { EmptyState } from "../components/EmptyState";
+import { useApiData } from "../contexts/ApiDataContext";
 
 const statusConfig = {
   success: { label: "Success", color: "bg-green-100 text-green-800" },
@@ -29,24 +16,90 @@ const statusConfig = {
 };
 
 export function SystemLogs() {
-  const [logs, setLogs] = useState(systemLogs);
+  const { isLoading, systemLogs } = useApiData();
   const [searchText, setSearchText] = useState("");
   const [moduleFilter, setModuleFilter] = useState("all-modules");
   const [statusFilter, setStatusFilter] = useState("all-status");
 
   const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
-      const matchesSearch =
-        log.action.toLowerCase().includes(searchText.toLowerCase()) ||
-        log.user.toLowerCase().includes(searchText.toLowerCase()) ||
-        log.details.toLowerCase().includes(searchText.toLowerCase());
-      const matchesModule =
-        moduleFilter === "all-modules" || log.module === moduleFilter;
-      const matchesStatus =
-        statusFilter === "all-status" || log.status === statusFilter;
-      return matchesSearch && matchesModule && matchesStatus;
+    return systemLogs
+      .filter((log) => {
+        const matchesSearch =
+          (log.action ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
+          (log.user ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
+          (log.details ?? "").toLowerCase().includes(searchText.toLowerCase());
+        const matchesModule =
+          moduleFilter === "all-modules" || log.module === moduleFilter;
+        const matchesStatus =
+          statusFilter === "all-status" || log.status === statusFilter;
+        return matchesSearch && matchesModule && matchesStatus;
+      })
+      .sort((a, b) => {
+        const aTime = new Date(a.timestamp ?? 0).getTime();
+        const bTime = new Date(b.timestamp ?? 0).getTime();
+        return bTime - aTime;
+      });
+  }, [systemLogs, searchText, moduleFilter, statusFilter]);
+
+  const stats = useMemo(() => {
+    const statusCounts = { success: 0, warning: 0, error: 0 };
+    const userCounts: Record<string, number> = {};
+    const moduleCounts: Record<string, number> = {};
+
+    systemLogs.forEach((log) => {
+      const status = (log.status ?? "").toLowerCase();
+      if (status in statusCounts) statusCounts[status as keyof typeof statusCounts] += 1;
+
+      const user = log.user ?? "Unknown";
+      userCounts[user] = (userCounts[user] ?? 0) + 1;
+
+      const module = log.module ?? "Unknown";
+      moduleCounts[module] = (moduleCounts[module] ?? 0) + 1;
     });
-  }, [logs, searchText, moduleFilter, statusFilter]);
+
+    const topUsers = Object.entries(userCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 4)
+      .map(([user, actions]) => ({ user, actions }));
+
+    const moduleActivity = Object.entries(moduleCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 4)
+      .map(([module, count]) => ({ module, count }));
+
+    return {
+      total: systemLogs.length,
+      statusCounts,
+      topUsers,
+      moduleActivity,
+    };
+  }, [systemLogs]);
+
+  const hasData = systemLogs.length > 0;
+
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-[1600px] mx-auto">
+        <EmptyState
+          title="Loading system logs..."
+          message="Fetching logs from the database."
+        />
+      </div>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <div className="p-6 max-w-[1600px] mx-auto">
+        <EmptyState
+          title="No logs yet"
+          message="Once actions occur, they'll appear here."
+          actionLabel="Refresh"
+          onAction={() => window.location.reload()}
+        />
+      </div>
+    );
+  }
 
   const exportLogs = () => {
     const header = [
@@ -59,16 +112,18 @@ export function SystemLogs() {
     ];
     const csv = [header.join(",")];
     filteredLogs.forEach((l) => {
-      csv.push([
-        l.timestamp,
-        l.user,
-        l.action,
-        l.module,
-        l.status,
-        l.details,
-      ]
-        .map((v) => `"${v}"`)
-        .join(","));
+      csv.push(
+        [
+          l.timestamp,
+          l.user,
+          l.action,
+          l.module,
+          l.status,
+          l.details,
+        ]
+          .map((v) => `"${v ?? ""}"`)
+          .join(",")
+      );
     });
     const blob = new Blob([csv.join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -92,25 +147,25 @@ export function SystemLogs() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card className="bg-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-gray-900">1,245</div>
-            <div className="text-sm text-gray-600 mt-1">Total Logs Today</div>
+            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+            <div className="text-sm text-gray-600 mt-1">Total Logs</div>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">1,198</div>
+            <div className="text-2xl font-bold text-green-600">{stats.statusCounts.success}</div>
             <div className="text-sm text-gray-600 mt-1">Successful Actions</div>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-orange-600">42</div>
+            <div className="text-2xl font-bold text-orange-600">{stats.statusCounts.warning}</div>
             <div className="text-sm text-gray-600 mt-1">Warnings</div>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-red-600">5</div>
+            <div className="text-2xl font-bold text-red-600">{stats.statusCounts.error}</div>
             <div className="text-sm text-gray-600 mt-1">Errors</div>
           </CardContent>
         </Card>
@@ -142,8 +197,6 @@ export function SystemLogs() {
                 <SelectItem value="Map Intelligence">Map Intelligence</SelectItem>
                 <SelectItem value="Statistics">Statistics</SelectItem>
                 <SelectItem value="Compliance">Compliance</SelectItem>
-                <SelectItem value="Data Import/Export">Data Import/Export</SelectItem>
-                <SelectItem value="CRUD Management">CRUD Management</SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -189,59 +242,70 @@ export function SystemLogs() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Timestamp
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    User
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Action
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Module
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Status
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Details
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-xs text-gray-700 font-mono">
-                      {log.timestamp}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {log.user}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                      {log.action}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {log.module}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge
-                        variant="outline"
-                        className={statusConfig[log.status as keyof typeof statusConfig].color}
-                      >
-                        {statusConfig[log.status as keyof typeof statusConfig].label}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
-                      {log.details}
-                    </td>
+            {filteredLogs.length === 0 ? (
+              <EmptyState
+                title="No activity logs yet"
+                message="Once actions occur, they'll appear here."
+                actionLabel="Refresh"
+                onAction={() => window.location.reload()}
+              />
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                      Timestamp
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                      User
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                      Action
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                      Module
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                      Status
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                      Details
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="py-3 px-4 text-xs text-gray-700 font-mono">
+                        {log.timestamp}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-700">
+                        {log.user}
+                      </td>
+                      <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                        {log.action}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-700">
+                        {log.module}
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge
+                          variant="outline"
+                          className={
+                            statusConfig[log.status as keyof typeof statusConfig]?.color
+                          }
+                        >
+                          {statusConfig[log.status as keyof typeof statusConfig]?.label || log.status}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600">
+                        {log.details}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -256,22 +320,24 @@ export function SystemLogs() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {[
-                { user: "admin@dhsud.gov.ph", actions: 324, role: "Administrator" },
-                { user: "officer@dhsud.gov.ph", actions: 218, role: "Data Officer" },
-                { user: "analyst@dhsud.gov.ph", actions: 156, role: "Analyst" },
-                { user: "system", actions: 89, role: "System" },
-              ].map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {item.user}
+              {stats.topUsers.length === 0 ? (
+                <div className="text-sm text-gray-500">No activity available.</div>
+              ) : (
+                stats.topUsers.map((user, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {user.user}
+                      </div>
+                      <div className="text-xs text-gray-500">Actions</div>
                     </div>
-                    <div className="text-xs text-gray-500">{item.role}</div>
+                    <Badge variant="outline">{user.actions} actions</Badge>
                   </div>
-                  <Badge variant="outline">{item.actions} actions</Badge>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -284,27 +350,26 @@ export function SystemLogs() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { module: "Map Intelligence", count: 456, percentage: 37 },
-                { module: "CRUD Management", count: 342, percentage: 27 },
-                { module: "Data Import/Export", count: 234, percentage: 19 },
-                { module: "Compliance Monitoring", count: 213, percentage: 17 },
-              ].map((item, index) => (
-                <div key={index}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      {item.module}
-                    </span>
-                    <span className="text-sm text-gray-600">{item.count}</span>
+              {stats.moduleActivity.length === 0 ? (
+                <div className="text-sm text-gray-500">No module activity yet.</div>
+              ) : (
+                stats.moduleActivity.map((item, index) => (
+                  <div key={index}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        {item.module}
+                      </span>
+                      <span className="text-sm text-gray-600">{item.count}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
+                        style={{ width: `${Math.min(100, (item.count / stats.total) * 100)}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

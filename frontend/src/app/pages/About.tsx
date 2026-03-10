@@ -23,7 +23,7 @@ export function About() {
             </div>
             <div>
               <h2 className="text-2xl font-bold">
-                DHSUD HREDR Compliance Monitoring System
+                DHSUD HREDR CLUP / PDPFPD Monitoring System
               </h2>
               <p className="text-blue-100 mt-1">
                 Negros Island Region Monitoring Platform
@@ -109,7 +109,7 @@ export function About() {
             <div className="flex items-start gap-3">
               <div className="w-2 h-2 rounded-full bg-blue-600 mt-2 flex-shrink-0" />
               <p className="text-sm text-gray-700">
-                Enable data import/export and archive management capabilities
+                Enable archive management and monitoring capabilities
               </p>
             </div>
           </CardContent>

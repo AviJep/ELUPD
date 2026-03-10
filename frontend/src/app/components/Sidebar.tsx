@@ -23,10 +23,13 @@ const navigationItems = [
   { path: "/", label: "Dashboard", icon: LayoutDashboard },
   { path: "/map-intelligence", label: "Map Intelligence", icon: MapPinned },
   { path: "/statistics", label: "Statistics and Analytics", icon: BarChart3 },
-  { path: "/compliance", label: "Compliance Monitoring", icon: ClipboardCheck },
-  { path: "/data-import-export", label: "Data Import and Export", icon: Upload },
+  { path: "/compliance", label: "CLUP / PDPFPD Monitoring", icon: ClipboardCheck },
+  {
+    path: "/directory",
+    label: "Municipal / City Directory",
+    icon: Database,
+  },
   { path: "/archive", label: "Archive Center", icon: Archive },
-  { path: "/crud", label: "CRUD Management", icon: Database },
   { path: "/logs", label: "System Logs", icon: ScrollText },
   { path: "/about", label: "About the Application", icon: Info },
 ];

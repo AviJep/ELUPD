@@ -109,6 +109,25 @@ app.post('/api/reset-db', (req, res) => {
 
 // choose a non-conflicting default port
 const port = process.env.PORT || 3001;
-app.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
+const host = process.env.HOST || "0.0.0.0";
+
+app.listen(port, host, () => {
+  console.log(`API listening on http://${host}:${port}`);
+  console.log(`
+You can access this API from other devices on the same network at:
+  http://${getLocalIp()}:${port}
+`);
 });
+
+function getLocalIp() {
+  const os = require("os");
+  const ifaces = os.networkInterfaces();
+  for (const name of Object.keys(ifaces)) {
+    for (const iface of ifaces[name]!) {
+      if (iface.family === "IPv4" && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return "localhost";
+}

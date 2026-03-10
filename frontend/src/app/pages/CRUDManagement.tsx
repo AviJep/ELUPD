@@ -4,41 +4,9 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Search, Plus, Edit, Trash2, Archive } from "lucide-react";
-import { useState } from "react";
-
-// initial datasets (could later come from an API)
-const provincesData = [
-  { id: 1, name: "Negros Occidental", municipalities: 43, barangays: 662, status: "active" },
-  { id: 2, name: "Negros Oriental", municipalities: 19, barangays: 557, status: "active" },
-  { id: 3, name: "Siquijor", municipalities: 6, barangays: 137, status: "active" },
-];
-
-const municipalitiesData = [
-  { id: 1, name: "Bacolod City", province: "Negros Occidental", barangays: 61, status: "updated", lastUpdate: "2026-03-02" },
-  { id: 2, name: "Dumaguete City", province: "Negros Oriental", barangays: 30, status: "updated", lastUpdate: "2026-03-03" },
-  { id: 3, name: "Silay City", province: "Negros Occidental", barangays: 16, status: "updated", lastUpdate: "2026-03-01" },
-  { id: 4, name: "Cadiz City", province: "Negros Occidental", barangays: 23, status: "non-compliance", lastUpdate: "2026-01-15" },
-  { id: 5, name: "Siquijor", province: "Siquijor", barangays: 42, status: "updated", lastUpdate: "2026-03-01" },
-  { id: 6, name: "Talisay City", province: "Negros Occidental", barangays: 14, status: "updating", lastUpdate: "2026-02-28" },
-  { id: 7, name: "Bais City", province: "Negros Oriental", barangays: 35, status: "updating", lastUpdate: "2026-02-27" },
-  { id: 8, name: "Bayawan City", province: "Negros Oriental", barangays: 28, status: "non-compliance", lastUpdate: "2026-01-10" },
-];
-
-const barangaysData = [
-  { id: 1, name: "Barangay 1", municipality: "Bacolod City", province: "Negros Occidental", population: 5420, status: "updated" },
-  { id: 2, name: "Barangay 2", municipality: "Bacolod City", province: "Negros Occidental", population: 4280, status: "updated" },
-  { id: 3, name: "Barangay Poblacion", municipality: "Dumaguete City", province: "Negros Oriental", population: 8920, status: "updated" },
-  { id: 4, name: "Barangay Banilad", municipality: "Dumaguete City", province: "Negros Oriental", population: 6150, status: "updating" },
-  { id: 5, name: "Barangay Hawaiian", municipality: "Silay City", province: "Negros Occidental", population: 3840, status: "updated" },
-  { id: 6, name: "Barangay Balabag", municipality: "Silay City", province: "Negros Occidental", population: 2960, status: "updated" },
-];
-
-const complianceRecordsData = [
-  { id: 1, municipality: "Bacolod City", province: "Negros Occidental", reportDate: "2026-03-02", status: "compliant", officer: "Juan Dela Cruz" },
-  { id: 2, municipality: "Dumaguete City", province: "Negros Oriental", reportDate: "2026-03-03", status: "compliant", officer: "Maria Santos" },
-  { id: 3, municipality: "Cadiz City", province: "Negros Occidental", reportDate: "2026-01-15", status: "non-compliant", officer: "Pedro Reyes" },
-  { id: 4, municipality: "Bayawan City", province: "Negros Oriental", reportDate: "2026-01-10", status: "non-compliant", officer: "Ana Garcia" },
-];
+import { useMemo, useEffect, useState } from "react";
+import { EmptyState } from "../components/EmptyState";
+import { useApiData } from "../contexts/ApiDataContext";
 
 const statusColors = {
   active: "bg-green-100 text-green-800",
@@ -50,38 +18,101 @@ const statusColors = {
 };
 
 export function CRUDManagement() {
-  // component state for each entity collection
-  const [provinces, setProvinces] = useState(provincesData);
-  const [municipalities, setMunicipalities] = useState(municipalitiesData);
-  const [barangays, setBarangays] = useState(barangaysData);
-  const [records, setRecords] = useState(complianceRecordsData);
+  const { provinces, municipalities, barangays, complianceRecords, addProvince, addMunicipality, addBarangay, addComplianceRecord } = useApiData();
+
+  const [provinceList, setProvinceList] = useState(provinces);
+  const [municipalityList, setMunicipalityList] = useState(municipalities);
+  const [barangayList, setBarangayList] = useState(barangays);
+  const [recordList, setRecordList] = useState(complianceRecords);
+
+  useEffect(() => {
+    setProvinceList(provinces);
+  }, [provinces]);
+
+  useEffect(() => {
+    setMunicipalityList(municipalities);
+  }, [municipalities]);
+
+  useEffect(() => {
+    setBarangayList(barangays);
+  }, [barangays]);
+
+  useEffect(() => {
+    setRecordList(complianceRecords);
+  }, [complianceRecords]);
+
+  const [searchText, setSearchText] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("all-modules");
+  const [statusFilter, setStatusFilter] = useState("all-status");
+
+  const filteredProvinces = useMemo(() => {
+    if (!searchText) return provinceList;
+    return provinceList.filter((p) => p.name.toLowerCase().includes(searchText.toLowerCase()));
+  }, [provinceList, searchText]);
+
+  const filteredMunicipalities = useMemo(() => {
+    if (!searchText) return municipalityList;
+    return municipalityList.filter((m) => m.name.toLowerCase().includes(searchText.toLowerCase()));
+  }, [municipalityList, searchText]);
+
+  const filteredBarangays = useMemo(() => {
+    if (!searchText) return barangayList;
+    return barangayList.filter((b) => b.name.toLowerCase().includes(searchText.toLowerCase()));
+  }, [barangayList, searchText]);
+
+  const filteredRecords = useMemo(() => {
+    if (!searchText) return recordList;
+    return recordList.filter((r) =>
+      (r.municipality || "").toLowerCase().includes(searchText.toLowerCase()) ||
+      (r.province || "").toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [recordList, searchText]);
 
   // --- CRUD helpers for provinces ---
-  const createProvince = (newProv: typeof provincesData[0]) => {
-    setProvinces((prev) => [...prev, newProv]);
+  const createProvince = (newProv: any) => {
+    setProvinceList((prev) => [...prev, newProv]);
+    addProvince(newProv);
   };
-  const updateProvince = (id: number, updates: Partial<typeof provincesData[0]>) => {
-    setProvinces((prev) => prev.map(p => (p.id === id ? { ...p, ...updates } : p)));
+  const updateProvince = (id: number, updates: any) => {
+    setProvinceList((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
   };
   const deleteProvince = (id: number) => {
-    setProvinces((prev) => prev.filter(p => p.id !== id));
+    setProvinceList((prev) => prev.filter((p) => p.id !== id));
   };
 
   // other collections can use the same pattern
-  const createMunicipality = (item: typeof municipalitiesData[0]) => setMunicipalities(prev => [...prev, item]);
-  const updateMunicipality = (id: number, updates: Partial<typeof municipalitiesData[0]>) =>
-    setMunicipalities(prev => prev.map(m => (m.id === id ? { ...m, ...updates } : m)));
-  const deleteMunicipality = (id: number) => setMunicipalities(prev => prev.filter(m => m.id !== id));
+  const createMunicipality = (item: any) => {
+    setMunicipalityList((prev) => [...prev, item]);
+    addMunicipality(item);
+  };
+  const updateMunicipality = (id: number, updates: any) =>
+    setMunicipalityList((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, ...updates } : m))
+    );
+  const deleteMunicipality = (id: number) =>
+    setMunicipalityList((prev) => prev.filter((m) => m.id !== id));
 
-  const createBarangay = (item: typeof barangaysData[0]) => setBarangays(prev => [...prev, item]);
-  const updateBarangay = (id: number, updates: Partial<typeof barangaysData[0]>) =>
-    setBarangays(prev => prev.map(b => (b.id === id ? { ...b, ...updates } : b)));
-  const deleteBarangay = (id: number) => setBarangays(prev => prev.filter(b => b.id !== id));
+  const createBarangay = (item: any) => {
+    setBarangayList((prev) => [...prev, item]);
+    addBarangay(item);
+  };
+  const updateBarangay = (id: number, updates: any) =>
+    setBarangayList((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, ...updates } : b))
+    );
+  const deleteBarangay = (id: number) =>
+    setBarangayList((prev) => prev.filter((b) => b.id !== id));
 
-  const createRecord = (item: typeof complianceRecordsData[0]) => setRecords(prev => [...prev, item]);
-  const updateRecord = (id: number, updates: Partial<typeof complianceRecordsData[0]>) =>
-    setRecords(prev => prev.map(r => (r.id === id ? { ...r, ...updates } : r)));
-  const deleteRecord = (id: number) => setRecords(prev => prev.filter(r => r.id !== id));
+  const createRecord = (item: any) => {
+    setRecordList((prev) => [...prev, item]);
+    addComplianceRecord(item);
+  };
+  const updateRecord = (id: number, updates: any) =>
+    setRecordList((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
+    );
+  const deleteRecord = (id: number) =>
+    setRecordList((prev) => prev.filter((r) => r.id !== id));
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
@@ -169,57 +200,77 @@ export function CRUDManagement() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Province Name
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Municipalities
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Barangays
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Status
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {provinces.map((province) => (
-                      <tr key={province.id} className="hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                          {province.name}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {province.municipalities}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {province.barangays}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant="outline" className={statusColors[province.status as keyof typeof statusColors]}>
-                            {province.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
+                {provinceList.length === 0 ? (
+                  <EmptyState
+                    title="No provinces yet"
+                    message="Add a province to start building your region database."
+                    actionLabel="Add Province"
+                    onAction={() => {
+                      const name = prompt("Enter new province name:");
+                      if (name) {
+                        createProvince({
+                          id: Date.now(),
+                          name,
+                          municipalities: 0,
+                          barangays: 0,
+                          status: "active",
+                        });
+                      }
+                    }}
+                  />
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Province Name
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Municipalities
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Barangays
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Status
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Actions
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {provinceList.map((province) => (
+                        <tr key={province.id} className="hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                            {province.name}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {province.municipalities}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {province.barangays}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className={statusColors[province.status as keyof typeof statusColors]}>
+                              {province.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex gap-2">
+                              <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -250,76 +301,94 @@ export function CRUDManagement() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Municipality
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Province
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Barangays
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Status
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Last Update
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {municipalities.map((municipality) => (
-                      <tr key={municipality.id} className="hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                          {municipality.name}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {municipality.province}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {municipality.barangays}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant="outline" className={statusColors[municipality.status as keyof typeof statusColors]}>
-                            {municipality.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {municipality.lastUpdate}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-blue-600 hover:bg-blue-50"
-                              onClick={() => updateMunicipality(municipality.id, { name: municipality.name + " (edited)" })}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-gray-600 hover:bg-gray-100">
-                              <Archive className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:bg-red-50"
-                              onClick={() => deleteMunicipality(municipality.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
+                {municipalityList.length === 0 ? (
+                  <EmptyState
+                    title="No municipalities yet"
+                    message="Add a municipality to start tracking compliance status."
+                    actionLabel="Add Municipality"
+                    onAction={() =>
+                      createMunicipality({
+                        id: Date.now(),
+                        name: "New Municipality",
+                        province: "",
+                        barangays: 0,
+                        status: "active",
+                        lastUpdate: new Date().toISOString().split("T")[0],
+                      })
+                    }
+                  />
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Municipality
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Province
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Barangays
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Status
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Last Update
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Actions
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {municipalityList.map((municipality) => (
+                        <tr key={municipality.id} className="hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                            {municipality.name}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {municipality.province}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {municipality.barangays}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className={statusColors[municipality.status as keyof typeof statusColors]}>
+                              {municipality.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {municipality.lastUpdate}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50"
+                                onClick={() => updateMunicipality(municipality.id, { name: municipality.name + " (edited)" })}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="text-gray-600 hover:bg-gray-100">
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => deleteMunicipality(municipality.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -350,73 +419,91 @@ export function CRUDManagement() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Barangay Name
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        City/Municipality
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Province
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Population
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Status
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {barangays.map((barangay) => (
-                      <tr key={barangay.id} className="hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                          {barangay.name}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {barangay.municipality}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {barangay.province}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {barangay.population.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant="outline" className={statusColors[barangay.status as keyof typeof statusColors]}>
-                            {barangay.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-blue-600 hover:bg-blue-50"
-                              onClick={() => updateBarangay(barangay.id, { name: barangay.name + " (edited)" })}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:bg-red-50"
-                              onClick={() => deleteBarangay(barangay.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
+                {barangayList.length === 0 ? (
+                  <EmptyState
+                    title="No barangays yet"
+                    message="Add barangays to start tracking local compliance status."
+                    actionLabel="Add Barangay"
+                    onAction={() =>
+                      createBarangay({
+                        id: Date.now(),
+                        name: "New Barangay",
+                        municipality: "",
+                        province: "",
+                        population: 0,
+                        status: "active",
+                      })
+                    }
+                  />
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Barangay Name
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          City/Municipality
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Province
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Population
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Status
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Actions
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {barangayList.map((barangay) => (
+                        <tr key={barangay.id} className="hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                            {barangay.name}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {barangay.municipality}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {barangay.province}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {barangay.population.toLocaleString()}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className={statusColors[barangay.status as keyof typeof statusColors]}>
+                              {barangay.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50"
+                                onClick={() => updateBarangay(barangay.id, { name: barangay.name + " (edited)" })}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => deleteBarangay(barangay.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -447,76 +534,94 @@ export function CRUDManagement() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Municipality
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Province
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Report Date
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Status
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Officer
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {records.map((record) => (
-                      <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                          {record.municipality}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {record.province}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {record.reportDate}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant="outline" className={statusColors[record.status as keyof typeof statusColors]}>
-                            {record.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-700">
-                          {record.officer}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-blue-600 hover:bg-blue-50"
-                              onClick={() => updateRecord(record.id, { officer: record.officer + " (edited)" })}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-gray-600 hover:bg-gray-100">
-                              <Archive className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:bg-red-50"
-                              onClick={() => deleteRecord(record.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
+                {records.length === 0 ? (
+                  <EmptyState
+                    title="No compliance records yet"
+                    message="Create a compliance record to start tracking progress."
+                    actionLabel="Add Record"
+                    onAction={() =>
+                      createRecord({
+                        id: Date.now(),
+                        municipality: "",
+                        province: "",
+                        reportDate: new Date().toISOString().split("T")[0],
+                        status: "compliant",
+                        officer: "",
+                      })
+                    }
+                  />
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Municipality
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Province
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Report Date
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Status
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Officer
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                          Actions
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {records.map((record) => (
+                        <tr key={record.id} className="hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                            {record.municipality}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {record.province}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {record.reportDate}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className={statusColors[record.status as keyof typeof statusColors]}>
+                              {record.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {record.officer}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50"
+                                onClick={() => updateRecord(record.id, { officer: record.officer + " (edited)" })}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="text-gray-600 hover:bg-gray-100">
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => deleteRecord(record.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </CardContent>
           </Card>
