@@ -4,15 +4,32 @@ import { MapPin, Building2, Users, FileText, Code, Globe } from "lucide-react";
 
 export function About() {
   return (
-    <div className="p-6 max-w-[1200px] mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          About the Application
-        </h1>
-        <p className="text-sm text-gray-600 mt-1">
-          System information and details
-        </p>
+    <div className="min-h-screen bg-gray-100">
+      {/* Blue Header Banner */}
+      <div className="bg-[#003087] text-white">
+        <div className="max-w-[1600px] mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold">
+                  About the Application
+                </h1>
+                <p className="text-sm md:text-base font-semibold text-blue-200">
+                  System information and details
+                </p>
+              </div>
+            </div>
+            <div className="text-right hidden md:block">
+              <p className="text-yellow-300 font-semibold text-sm">
+                As of March 12, 2026
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Main Content */}
+      <div className="max-w-[1200px] mx-auto px-4 py-6">
 
       {/* Hero Card */}
       <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg mb-6">
@@ -261,6 +278,7 @@ export function About() {
       <div className="mt-8 text-center text-sm text-gray-600">
         <p>© 2026 Department of Human Settlements and Urban Development (DHSUD)</p>
         <p className="mt-1">All rights reserved. For official use only.</p>
+      </div>
       </div>
     </div>
   );

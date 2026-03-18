@@ -1,411 +1,369 @@
-import { useMemo } from "react";
-import {
-  Activity,
-  MapPin,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { EmptyState } from "../components/EmptyState";
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { useApiData } from "../contexts/ApiDataContext";
+import { useState, useMemo } from "react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { RotateCcw } from "lucide-react";
+import { provinces, computeStats } from "../utils/clup-data";
+import { useData } from "../DataContext";
+import { NegrosIslandMap } from "../components/NegrosIslandMap";
 
 export function Dashboard() {
-  const {
-    isLoading,
-    provinces,
-    municipalities,
-    complianceRecords,
-    systemLogs,
-  } = useApiData();
+  const { municipalities: nirMunicipalities } = useData();
+  // Filters
+  const [selectedProvince, setSelectedProvince] = useState<string>("All");
+  const [selectedCity, setSelectedCity] = useState<string>("All");
+  const [selectedStatus, setSelectedStatus] = useState<string>("All");
+  const [yearApprovalRange, setYearApprovalRange] = useState<[number, number]>([1900, 2026]);
+  const [endYearRange, setEndYearRange] = useState<[number, number]>([0, 2050]);
 
-  const monthLabels = useMemo(() => {
-    const now = new Date();
-    return Array.from({ length: 6 }).map((_, idx) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
-      return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+  // Filter municipalities
+  const filteredMunicipalities = useMemo(() => {
+    return nirMunicipalities.filter((m) => {
+      if (selectedProvince !== "All" && m.province !== selectedProvince) return false;
+      if (selectedCity !== "All" && m.name !== selectedCity) return false;
+      if (selectedStatus !== "All" && m.clupStatus !== selectedStatus) return false;
+      if (m.yearApproved !== null) {
+        if (m.yearApproved < yearApprovalRange[0] || m.yearApproved > yearApprovalRange[1]) return false;
+      }
+      if (m.endYear !== null) {
+        if (m.endYear < endYearRange[0] || m.endYear > endYearRange[1]) return false;
+      }
+      return true;
     });
-  }, []);
+  }, [selectedProvince, selectedCity, selectedStatus, yearApprovalRange, endYearRange]);
 
-  const lineChartData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    monthLabels.forEach((m) => (counts[m] = 0));
+  const stats = computeStats(filteredMunicipalities);
+  const allStats = computeStats(nirMunicipalities);
 
-    complianceRecords.forEach((record) => {
-      if (!record.reportDate) return;
-      const date = new Date(record.reportDate);
-      const label = date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
-      if (label in counts) counts[label] += 1;
-    });
+  // Cities for dropdown (filtered by province)
+  const availableCities = useMemo(() => {
+    if (selectedProvince === "All") return nirMunicipalities.map((m) => m.name);
+    return nirMunicipalities.filter((m) => m.province === selectedProvince).map((m) => m.name);
+  }, [selectedProvince]);
 
-    return monthLabels.map((month) => ({ month, updates: counts[month] || 0 }));
-  }, [complianceRecords, monthLabels]);
+  // Reset filters
+  const resetFilters = () => {
+    setSelectedProvince("All");
+    setSelectedCity("All");
+    setSelectedStatus("All");
+    setYearApprovalRange([1900, 2026]);
+    setEndYearRange([0, 2050]);
+  };
 
-  const heatmapData = useMemo(() => {
-    const lastThreeMonths = monthLabels.slice(-3);
-    const counts: Record<string, Record<string, number>> = {};
+  // Pie chart data
+  const riskPieData = [
+    { name: "Yes", value: stats.riskInformed, color: "#10b981" },
+    { name: "No", value: stats.notRiskInformed, color: "#ef4444" },
+  ];
 
-    complianceRecords.forEach((record) => {
-      const municipality = (record.municipality ?? "Unknown").toString();
-      const date = record.reportDate ? new Date(record.reportDate) : null;
-      const monthLabel = date
-        ? date.toLocaleDateString(undefined, { month: "short", year: "numeric" })
-        : null;
+  const shelterPieData = [
+    { name: "Yes", value: stats.integrated, color: "#10b981" },
+    { name: "No", value: stats.notIntegrated, color: "#ef4444" },
+  ];
 
-      if (!monthLabel || !lastThreeMonths.includes(monthLabel)) return;
-
-      counts[municipality] = counts[municipality] ?? { [lastThreeMonths[0]]: 0, [lastThreeMonths[1]]: 0, [lastThreeMonths[2]]: 0 };
-      counts[municipality][monthLabel] += 1;
-    });
-
-    return Object.entries(counts)
-      .slice(0, 5)
-      .map(([municipality, data]) => ({
-        barangay: municipality,
-        jan: Math.min(100, data[lastThreeMonths[0]] ?? 0),
-        feb: Math.min(100, data[lastThreeMonths[1]] ?? 0),
-        mar: Math.min(100, data[lastThreeMonths[2]] ?? 0),
-      }));
-  }, [complianceRecords, monthLabels]);
-
-  const recentActivities = useMemo(() => {
-    return [...systemLogs]
-      .sort((a, b) => {
-        const aTime = new Date(a.timestamp ?? 0).getTime();
-        const bTime = new Date(b.timestamp ?? 0).getTime();
-        return bTime - aTime;
-      })
-      .slice(0, 5)
-      .map((log) => ({
-        location: log.module ?? "Unknown",
-        action: log.action ?? "",
-        time: log.timestamp ?? "",
-      }));
-  }, [systemLogs]);
-
-  const statsData = useMemo(() => {
-    const updated = complianceRecords.filter((r) => r.status === "compliant").length;
-    const nonCompliant = complianceRecords.filter((r) => r.status === "non-compliant").length;
-    const expired = complianceRecords.filter((r) => r.status === "expired").length;
-
-    return {
-      activeCities: municipalities.length,
-      totalMunicipalities: municipalities.length,
-      compliant: updated,
-      nonCompliant,
-      expired,
-      updating: complianceRecords.filter((r) => r.status === "updating").length,
-    };
-  }, [municipalities.length, complianceRecords]);
-
-  const alertStats = useMemo(() => {
-    return {
-      criticalNonCompliance: complianceRecords.filter((r) => r.status === "non-compliant").length,
-      pendingUpdates: statsData.updating,
-      expiredRecords: statsData.expired,
-    };
-  }, [complianceRecords, statsData.updating, statsData.expired]);
-
-  const barChartData = useMemo(() => {
-    if (!provinces.length || !municipalities.length) return [];
-
-    return provinces.map((province) => {
-      const provinceMunicipalities = municipalities.filter((m) => m.province === province.name);
-      return {
-        province: province.name,
-        updated: provinceMunicipalities.filter((m) => m.status === "updated").length,
-        updating: provinceMunicipalities.filter((m) => m.status === "updating").length,
-        nonCompliant: provinceMunicipalities.filter((m) => m.status === "non-compliance").length,
-        expired: provinceMunicipalities.filter((m) => m.status === "expired").length,
-      };
-    });
-  }, [provinces, municipalities]);
-
-  const pieChartData = useMemo(() => {
-    return [
-      { name: "Updated", value: statsData.compliant, color: "#10b981" },
-      { name: "Updating", value: statsData.updating, color: "#f59e0b" },
-      { name: "Non-Compliant", value: statsData.nonCompliant, color: "#ef4444" },
-      { name: "Expired", value: statsData.expired, color: "#6b7280" },
-    ];
-  }, [statsData]);
-
-  const hasData = provinces.length > 0 || municipalities.length > 0 || complianceRecords.length > 0;
+  const riskPct = stats.total > 0 ? ((stats.riskInformed / stats.total) * 100).toFixed(2) : "0";
+  const noRiskPct = stats.total > 0 ? ((stats.notRiskInformed / stats.total) * 100).toFixed(2) : "0";
+  const shelterPct = stats.total > 0 ? ((stats.integrated / stats.total) * 100).toFixed(2) : "0";
+  const noShelterPct = stats.total > 0 ? ((stats.notIntegrated / stats.total) * 100).toFixed(2) : "0";
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard Overview</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Real-time CLUP / PDPFPD monitoring across Negros Island Region
-        </p>
+    <div className="min-h-screen bg-gray-100">
+      {/* Blue Header Banner */}
+      <div className="bg-[#003087] text-white">
+        <div className="max-w-[1600px] mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold">
+                  ENVIRONMENTAL AND LAND USE PLANNING AND DEVELOPMENT (ELUPD)
+                </h1>
+                <p className="text-sm md:text-base font-semibold text-blue-200">
+                  CLUP AND PDPFP STATUS DASHBOARD — Negros Island Region
+                </p>
+              </div>
+            </div>
+            <div className="text-right hidden md:block">
+              <p className="text-yellow-300 font-semibold text-sm">
+                As of March 12, 2026
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {isLoading ? (
-        <EmptyState
-          title="Loading dashboard..."
-          message="Fetching data from the database."
-        />
-      ) : !hasData ? (
-        <EmptyState
-          title="No data yet"
-          message="Once your database has records, the dashboard metrics will appear here."
-        />
-      ) : (
-        <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  Active Cities
-                </CardTitle>
-                <Activity className="h-5 w-5 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-gray-900">{statsData.activeCities}</div>
-                <p className="text-xs text-gray-500 mt-1">Real-time updates</p>
-              </CardContent>
-            </Card>
+      {/* Main Content */}
+      <div className="max-w-[1600px] mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-            <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  Total Municipalities
-                </CardTitle>
-                <MapPin className="h-5 w-5 text-purple-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-gray-900">{statsData.totalMunicipalities}</div>
-                <p className="text-xs text-gray-500 mt-1">Across all provinces</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  Compliant Areas
-                </CardTitle>
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">{statsData.compliant}</div>
-                <p className="text-xs text-gray-500 mt-1">Compliance breakdown</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  Non-Compliant
-                </CardTitle>
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-orange-600">{statsData.nonCompliant}</div>
-                <p className="text-xs text-gray-500 mt-1">Needs attention</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  Expired Records
-                </CardTitle>
-                <XCircle className="h-5 w-5 text-red-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-red-600">{statsData.expired}</div>
-                <p className="text-xs text-gray-500 mt-1">Requires update</p>
-              </CardContent>
-            </Card>
+          {/* LEFT COLUMN - Status Cards */}
+          <div className="lg:col-span-2 space-y-3">
+            {/* Updated */}
+            <div className="bg-green-500 rounded-lg p-4 text-center text-white shadow-md">
+              <div className="text-5xl font-bold">{stats.updated}</div>
+              <div className="text-sm font-semibold mt-1">Updated</div>
+            </div>
+            {/* Expired */}
+            <div className="bg-yellow-500 rounded-lg p-4 text-center text-white shadow-md">
+              <div className="text-5xl font-bold">{stats.expired}</div>
+              <div className="text-sm font-semibold mt-1">Expired (2025)</div>
+            </div>
+            {/* For Updating */}
+            <div className="bg-orange-500 rounded-lg p-4 text-center text-white shadow-md">
+              <div className="text-5xl font-bold">{stats.forUpdating}</div>
+              <div className="text-sm font-semibold mt-1">For Updating</div>
+            </div>
+            {/* No CLUP */}
+            <div className="bg-red-600 rounded-lg p-4 text-center text-white shadow-md">
+              <div className="text-5xl font-bold">{stats.noClup}</div>
+              <div className="text-sm font-semibold mt-1">No CLUP</div>
+            </div>
           </div>
 
-          {/* Alert Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card className="bg-red-50 border-red-200 shadow-sm">
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-red-700">{alertStats.criticalNonCompliance}</div>
-                <div className="text-sm text-red-600 mt-1">Critical Non-Compliance</div>
-                <div className="text-xs text-red-500 mt-2">Requires immediate action</div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-orange-50 border-orange-200 shadow-sm">
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-orange-700">{alertStats.pendingUpdates}</div>
-                <div className="text-sm text-orange-600 mt-1">Pending Updates</div>
-                <div className="text-xs text-orange-500 mt-2">In progress</div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gray-50 border-gray-200 shadow-sm">
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-gray-700">{alertStats.expiredRecords}</div>
-                <div className="text-sm text-gray-600 mt-1">Expired Records</div>
-                <div className="text-xs text-gray-500 mt-2">Needs renewal</div>
-              </CardContent>
-            </Card>
+          {/* CENTER - Map */}
+          <div className="lg:col-span-5">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden border-2 border-blue-800">
+              <div className="bg-blue-800 text-white text-center py-2 px-4">
+                <h3 className="font-semibold text-sm">CLUP Status Map</h3>
+              </div>
+              {/* Map Legend */}
+              <div className="flex items-center justify-center gap-4 py-2 bg-gray-50 border-b text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-orange-500 inline-block" />
+                  <span>For Updating</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
+                  <span>No CLUP</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
+                  <span>Updated</span>
+                </div>
+              </div>
+              <div className="p-2">
+                <NegrosIslandMap municipalities={filteredMunicipalities} />
+              </div>
+            </div>
           </div>
 
-          {/* Charts Row 1 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Bar Chart */}
-            <Card className="bg-white shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base font-semibold text-gray-900">
-                  Provincial Compliance Comparison
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={barChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="province" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="updated" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="updating" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="nonCompliant" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="expired" fill="#6b7280" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+          {/* RIGHT - Filters */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-md border-2 border-blue-800">
+              {/* Province */}
+              <FilterSection label="Province">
+                <select
+                  value={selectedProvince}
+                  onChange={(e) => {
+                    setSelectedProvince(e.target.value);
+                    setSelectedCity("All");
+                  }}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white"
+                >
+                  <option value="All">All</option>
+                  {provinces.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </FilterSection>
 
-            {/* Line Chart */}
-            <Card className="bg-white shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base font-semibold text-gray-900">
-                  Barangay Update Trends
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={lineChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="updates"
-                      stroke="#3b82f6"
-                      strokeWidth={3}
-                      dot={{ fill: "#3b82f6", r: 5 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+              {/* City/Municipality */}
+              <FilterSection label="City/Municipality">
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white"
+                >
+                  <option value="All">All</option>
+                  {availableCities.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </FilterSection>
+
+              {/* CLUP Status */}
+              <FilterSection label="CLUP Status">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white"
+                >
+                  <option value="All">All</option>
+                  <option value="updated">Updated</option>
+                  <option value="for-updating">For Updating</option>
+                  <option value="no-clup">No CLUP</option>
+                  <option value="expired">Expired</option>
+                </select>
+              </FilterSection>
+
+              {/* Year of Approval */}
+              <FilterSection label="Year of Approval">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={yearApprovalRange[0]}
+                    onChange={(e) => setYearApprovalRange([Number(e.target.value), yearApprovalRange[1]])}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    min={1900}
+                    max={2030}
+                  />
+                  <input
+                    type="number"
+                    value={yearApprovalRange[1]}
+                    onChange={(e) => setYearApprovalRange([yearApprovalRange[0], Number(e.target.value)])}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    min={1900}
+                    max={2030}
+                  />
+                </div>
+              </FilterSection>
+
+              {/* End Year */}
+              <FilterSection label="End Year">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={endYearRange[0]}
+                    onChange={(e) => setEndYearRange([Number(e.target.value), endYearRange[1]])}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    min={0}
+                    max={2060}
+                  />
+                  <input
+                    type="number"
+                    value={endYearRange[1]}
+                    onChange={(e) => setEndYearRange([endYearRange[0], Number(e.target.value)])}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                    min={0}
+                    max={2060}
+                  />
+                </div>
+              </FilterSection>
+
+              {/* Reset */}
+              <div className="p-3 border-t">
+                <button
+                  onClick={resetFilters}
+                  className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded transition-colors text-sm"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset Filters
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Charts Row 2 */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Pie Chart */}
-            <Card className="bg-white shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base font-semibold text-gray-900">
-                  Compliance Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
+          {/* FAR RIGHT - Pie Charts */}
+          <div className="lg:col-span-3 space-y-4">
+            {/* Risk Informed Plans */}
+            <div className="bg-white rounded-lg shadow-md border-2 border-blue-800 overflow-hidden">
+              <div className="bg-blue-800 text-white text-center py-2 px-4">
+                <h3 className="font-semibold text-sm">Risk Informed Plans</h3>
+              </div>
+              <div className="p-4">
+                <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
                     <Pie
-                      data={pieChartData}
+                      data={riskPieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
-                      paddingAngle={2}
+                      outerRadius={70}
                       dataKey="value"
+                      label={({ name, value }) => `${value} (${name === 'Yes' ? riskPct : noRiskPct}%)`}
+                      labelLine={true}
                     >
-                      {pieChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {riskPieData.map((entry, index) => (
+                        <Cell key={`risk-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                     <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                  {pieChartData.map((item) => (
-                    <div key={item.name} className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="text-xs text-gray-600">
-                        {item.name}: {item.value}
-                      </span>
+                <div className="flex justify-center gap-6 mt-2 text-xs">
+                  <span className="text-center">
+                    <span className="font-bold text-lg text-green-600">{stats.riskInformed}</span>
+                    <br />
+                    <span className="text-gray-600">Risk Informed</span>
+                  </span>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+                      <span>Yes</span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Heatmap */}
-            <Card className="bg-white shadow-sm lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-base font-semibold text-gray-900">
-                  Compliance Activity Heatmap
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {heatmapData.map((item) => (
-                    <div key={item.barangay}>
-                      <div className="text-xs font-medium text-gray-700 mb-1">
-                        {item.barangay}
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="text-center p-2 rounded" style={{ backgroundColor: `rgba(34, 197, 94, ${item.jan / 100})` }}>
-                          <div className="text-xs font-medium">Jan: {item.jan}%</div>
-                        </div>
-                        <div className="text-center p-2 rounded" style={{ backgroundColor: `rgba(34, 197, 94, ${item.feb / 100})` }}>
-                          <div className="text-xs font-medium">Feb: {item.feb}%</div>
-                        </div>
-                        <div className="text-center p-2 rounded" style={{ backgroundColor: `rgba(34, 197, 94, ${item.mar / 100})` }}>
-                          <div className="text-xs font-medium">Mar: {item.mar}%</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Activity */}
-          <Card className="bg-white shadow-sm mt-6">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-gray-900">
-                Recent Activity Feed
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-start gap-3 pb-4 border-b last:border-0">
-                    <div className="w-2 h-2 rounded-full bg-blue-600 mt-2" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm text-gray-900">
-                        {activity.location}
-                      </div>
-                      <div className="text-sm text-gray-600">{activity.action}</div>
-                      <div className="text-xs text-gray-500 mt-1">{activity.time}</div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+                      <span>No</span>
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+            </div>
+
+            {/* Integrated Local Shelter Plan */}
+            <div className="bg-white rounded-lg shadow-md border-2 border-blue-800 overflow-hidden">
+              <div className="bg-blue-800 text-white text-center py-2 px-4">
+                <h3 className="font-semibold text-sm">With Integrated Local Shelter Plan</h3>
+              </div>
+              <div className="p-4">
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie
+                      data={shelterPieData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      dataKey="value"
+                      label={({ name, value }) => `${value} (${name === 'Yes' ? shelterPct : noShelterPct}%)`}
+                      labelLine={true}
+                    >
+                      {shelterPieData.map((entry, index) => (
+                        <Cell key={`shelter-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex justify-center gap-6 mt-2 text-xs">
+                  <span className="text-center">
+                    <span className="font-bold text-lg text-green-600">{stats.integrated}</span>
+                    <br />
+                    <span className="text-gray-600">Integrated</span>
+                  </span>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+                      <span>Yes</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+                      <span>No</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="mt-4 flex justify-end">
+          <div className="bg-red-600 text-white text-xs font-semibold px-3 py-1 rounded">
+            Updated {new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Filter section helper component
+function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="border-b last:border-b-0">
+      <div className="bg-blue-800 text-white text-xs font-semibold px-3 py-1.5">
+        {label}
+      </div>
+      <div className="p-3">
+        {children}
+      </div>
     </div>
   );
 }
