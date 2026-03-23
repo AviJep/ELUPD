@@ -1,19 +1,16 @@
-# Backend
+# Backend (ELUPD)
 
-This directory contains two backends:
+This directory contains the unified Django-based backend for the ELUPD Dashboard.
 
-1. A legacy **Express + SQLite** implementation (TypeScript).
-2. A new **Django + Django REST Framework** implementation (Python).
+## Django + Django REST Framework Implementation
 
----
-
-## Django backend (recommended)
+This backend provides a robust and scalable API for managing provinces, municipalities, barangays, compliance records, and archives.
 
 ### Setup
 
-1. Create/activate the virtual environment (already provided in `.venv`):
-   - Windows: `\.venv\Scripts\activate`
-   - macOS/Linux: `source .venv/bin/activate`
+1. Create/activate the virtual environment:
+   - Windows: `..\environment\Scripts\activate` (using the root project's venv)
+   - macOS/Linux: `source ../environment/bin/activate`
 
 2. Install dependencies:
 
@@ -23,24 +20,26 @@ pip install -r requirements.txt
 
 ### Running
 
+The backend defaults to port 8000. You can start it using:
+
 ```bash
-python manage.py migrate
-python manage.py runserver 0.0.0.0:3001
+python manage.py runserver
 ```
 
-The Django backend will expose the same endpoints under `/api/` (e.g. `/api/health`, `/api/provinces`, `/api/reset-db`).
+The API endpoints are available under the `/api/` prefix (e.g., `/api/compliance`, `/api/provinces`).
 
----
+### Database Migrations
 
-## Express backend (legacy)
+If you make changes to the models in `core/models.py`, run:
 
-This is the original API implementation in TypeScript.
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
 
-### Available scripts
+### Features
 
-- `npm run dev` - start the server with ts-node and nodemon for development
-- `npm run build` - compile TypeScript into the `dist` directory
-- `npm run start` - run the compiled server
-
-The server listens on `PORT` environment variable or `3001` by default and
-exposes a health endpoint at `/api/health`.
+- **CRUD API**: Fully functional endpoints for all data entities using Django Rest Framework.
+- **Model Support**: Comprehensive models for Compliance Monitoring (CLUP / PDPFPD).
+- **Reset API**: A secure endpoint to clear the database for testing (`/api/reset-db/`).
+- **CORS Support**: Pre-configured with `django-cors-headers`.

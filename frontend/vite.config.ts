@@ -26,7 +26,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       // Proxy API calls to the backend during development to avoid CORS issues
-      '/api': 'http://localhost:3001'
+      '/api': 'http://localhost:8001'
     }
   }
 })

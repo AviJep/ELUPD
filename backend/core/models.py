@@ -80,6 +80,9 @@ class ComplianceRecord(models.Model):
     hardCopyAvailable = models.BooleanField(default=False)
     softCopyUrl = models.CharField(max_length=1024, null=True, blank=True)
 
+    riskInformed = models.BooleanField(default=False)
+    integratedShelterPlan = models.BooleanField(default=False)
+
     class Meta:
         db_table = "compliance_records"
 

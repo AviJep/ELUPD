@@ -1,0 +1,63 @@
+// Prisma Schema: Negros Island Region (NIR) Geographic Dashboard
+// Supports: LGU Dimension, CLUP Progress, PDPFP Status, and Housing Projects
+// Note: SQLite does not support native enums, so we use String fields validated at the app level.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./data.sqlite"
+}
+
+model LGUDirectory {
+  id                Int              @id @default(autoincrement())
+  region            String
+  province          String
+  city_municipality String           @unique
+  lgu_type          String           // 'ICC', 'HUC', 'CC', 'M'
+  income_class      String           // '1st', '2nd', etc.
+  geo_json_id       String           // For map binding
+  
+  clup_progress     CLUPProgress?
+  pdpfp_status      PDPFPStatus?
+  housing_projects  HousingProject[]
+
+  @@map("lgu_directory")
+}
+
+model CLUPProgress {
+  id             Int          @id @default(autoincrement())
+  lgu_id         Int          @unique
+  lgu            LGUDirectory @relation(fields: [lgu_id], references: [id], onDelete: Cascade)
+  clup_status    String       // Enum: 'Prephase', 'CLUP Formulation', etc.
+  current_phase  String       // e.g., 'RA1', 'Phase 1'
+
+  @@map("clup_progress")
+}
+
+model PDPFPStatus {
+  id               Int              @id @default(autoincrement())
+  lgu_id           Int              @unique
+  lgu              LGUDirectory     @relation(fields: [lgu_id], references: [id], onDelete: Cascade)
+  latest_status    String           // Enum: 'Approved', 'Adopted', etc.
+  date_of_approval DateTime?
+  year_adopted     Int?             // Range 1905-2025
+  year_approved    Int?             // Range 2019-2025
+  end_year         Int?             // Range 2002-2055
+
+  @@map("pdpfp_status")
+}
+
+model HousingProject {
+  id           Int          @id @default(autoincrement())
+  lgu_id       Int
+  lgu          LGUDirectory @relation(fields: [lgu_id], references: [id], onDelete: Cascade)
+  project_name String
+  developer    String
+  project_type String
+  status       String
+
+  @@map("housing_projects")
+}

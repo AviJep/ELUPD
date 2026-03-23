@@ -21,11 +21,22 @@ class MunicipalitySerializer(serializers.ModelSerializer):
         model = Municipality
         fields = '__all__'
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['province'] = instance.province.name if instance.province else ""
+        return representation
+
 
 class BarangaySerializer(serializers.ModelSerializer):
     class Meta:
         model = Barangay
         fields = '__all__'
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['province'] = instance.province.name if instance.province else ""
+        representation['municipality'] = instance.municipality.name if instance.municipality else ""
+        return representation
 
 
 class ComplianceRecordSerializer(serializers.ModelSerializer):
@@ -54,6 +65,13 @@ class ComplianceRecordSerializer(serializers.ModelSerializer):
             municipality.province = province
             municipality.save(update_fields=['province'])
         return municipality
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # Return the string names for province and municipality for the frontend
+        representation['province'] = instance.province.name if instance.province else ""
+        representation['municipality'] = instance.municipality.name if instance.municipality else ""
+        return representation
 
     def create(self, validated_data):
         province_name = validated_data.pop('province', None)

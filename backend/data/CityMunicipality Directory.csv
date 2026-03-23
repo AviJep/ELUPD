@@ -1,0 +1,6 @@
+region,province,city_municipality,lgu_type,income_class,geo_json_id
+NIR,Negros Occidental,Bacolod City,HUC,1st,bacolod_city
+NIR,Negros Occidental,Bago City,CC,1st,bago_city
+NIR,Negros Oriental,Dumaguete City,CC,1st,dumaguete_city
+NIR,Siquijor,Siquijor,M,3rd,siquijor
+NCR,Metro Manila,Quezon City,HUC,1st,quezon_city

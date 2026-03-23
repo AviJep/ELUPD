@@ -1,5 +1,6 @@
-import { Menu } from "lucide-react";
+import { Bell, Menu, User } from "lucide-react";
 import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 
 interface TopNavProps {
   onMenuClick: () => void;

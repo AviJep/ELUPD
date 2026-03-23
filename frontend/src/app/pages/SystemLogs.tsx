@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Search, Download, RefreshCw } from "lucide-react";
+import { Search, Download, RefreshCw, ScrollText } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { useData } from "../DataContext";
+import { useLgus } from "../LGUContext";
 
 const statusConfig = {
   success: { label: "Success", color: "bg-green-100 text-green-800" },
@@ -15,7 +15,7 @@ const statusConfig = {
 };
 
 export function SystemLogs() {
-  const { logs } = useData();
+  const { logs, isLoading } = useLgus();
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("all-modules");
   const [statusFilter, setStatusFilter] = useState("all-status");
@@ -46,279 +46,124 @@ export function SystemLogs() {
   const warningCount = logs.filter((l) => l.status === "warning").length;
   const errorCount = logs.filter((l) => l.status === "error").length;
 
-  // Compute user activity from logs
-  const userActivity = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const log of logs) {
-      map.set(log.user, (map.get(log.user) ?? 0) + 1);
-    }
-    return Array.from(map.entries())
-      .map(([user, actions]) => ({
-        user,
-        actions,
-        role: user === "system" ? "System" : user.includes("admin") ? "Administrator" : "Data Officer",
-      }))
-      .sort((a, b) => b.actions - a.actions)
-      .slice(0, 4);
-  }, [logs]);
-
-  // Compute module activity from logs
-  const moduleActivity = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const log of logs) {
-      map.set(log.module, (map.get(log.module) ?? 0) + 1);
-    }
-    const items = Array.from(map.entries())
-      .map(([module, count]) => ({ module, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 4);
-    const maxCount = items[0]?.count ?? 1;
-    return items.map((i) => ({
-      ...i,
-      percentage: Math.round((i.count / maxCount) * 100),
-    }));
-  }, [logs]);
+  if (isLoading) return (
+    <div className="flex h-screen items-center justify-center bg-gray-50">
+      <div className="h-10 w-10 border-4 border-[#003087] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Blue Header Banner */}
-      <div className="bg-[#003087] text-white">
-        <div className="max-w-[1600px] mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold">
-                  System Logs
-                </h1>
-                <p className="text-sm md:text-base font-semibold text-blue-200">
-                  Monitor system activities and user actions
-                </p>
-              </div>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-[1600px] mx-auto space-y-6">
+        <div className="bg-[#003087] text-white p-8 rounded-2xl shadow-xl overflow-hidden relative">
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-2">
+              <ScrollText className="h-6 w-6 text-blue-200" />
+              <h1 className="text-2xl font-black uppercase tracking-tight">System Logs</h1>
             </div>
-            <div className="text-right hidden md:block">
-              <p className="text-yellow-300 font-semibold text-sm">
-                As of March 12, 2026
-              </p>
-            </div>
+            <p className="text-blue-100 text-sm font-medium">Monitoring regional system activities and administrative actions</p>
+          </div>
+          <div className="absolute right-[-20px] top-[-20px] opacity-10">
+            <ScrollText className="h-64 w-64" />
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <LogStatCard label="Total Activities" value={totalLogs} color="text-blue-600" />
+          <LogStatCard label="Success" value={successCount} color="text-green-600" />
+          <LogStatCard label="Warnings" value={warningCount} color="text-orange-600" />
+          <LogStatCard label="Errors" value={errorCount} color="text-red-600" />
+        </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-white shadow-sm">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-gray-900">{totalLogs}</div>
-            <div className="text-sm text-gray-600 mt-1">Total Logs</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-white shadow-sm">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{successCount}</div>
-            <div className="text-sm text-gray-600 mt-1">Successful Actions</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-white shadow-sm">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-orange-600">{warningCount}</div>
-            <div className="text-sm text-gray-600 mt-1">Warnings</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-white shadow-sm">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-red-600">{errorCount}</div>
-            <div className="text-sm text-gray-600 mt-1">Errors</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card className="bg-white shadow-sm mb-6">
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+        <Card className="border-none shadow-sm overflow-hidden bg-white">
+          <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search logs..."
-                className="pl-9"
+                placeholder="Search action, user, or details..."
+                className="pl-9 bg-white border-gray-200"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Select value={moduleFilter} onValueChange={setModuleFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Module" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all-modules">All Modules</SelectItem>
-                <SelectItem value="dashboard">Dashboard</SelectItem>
-                <SelectItem value="statistics">Statistics</SelectItem>
-                <SelectItem value="compliance">Compliance Monitoring</SelectItem>
-                <SelectItem value="authentication">Authentication</SelectItem>
-                <SelectItem value="system">System</SelectItem>
-                <SelectItem value="user">User Management</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all-status">All Status</SelectItem>
-                <SelectItem value="success">Success</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => { setSearch(""); setModuleFilter("all-modules"); setStatusFilter("all-status"); }}
+            <div className="flex gap-2 w-full md:w-auto">
+              <select 
+                value={moduleFilter} 
+                onChange={(e) => setModuleFilter(e.target.value)}
+                className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#003087]"
               >
+                <option value="all-modules">All Modules</option>
+                <option value="compliance">Compliance</option>
+                <option value="core">Core</option>
+              </select>
+              <Button variant="outline" className="border-gray-200" onClick={() => { setSearch(""); setModuleFilter("all-modules"); }}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="flex-1">
-                <Download className="h-4 w-4" />
-              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Logs Table */}
-      <Card className="bg-white shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold text-gray-900">
-            Activity Logs
-            <span className="ml-2 text-xs font-normal text-gray-500">
-              ({filtered.length} record{filtered.length !== 1 ? "s" : ""})
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Timestamp
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    User
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Action
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Module
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Status
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
-                    Details
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="text-center py-8 text-gray-400 text-sm">
-                      No logs found.
-                    </td>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                    <th className="py-4 px-6">Timestamp</th>
+                    <th className="py-4 px-6">User</th>
+                    <th className="py-4 px-6">Action</th>
+                    <th className="py-4 px-6">Module</th>
+                    <th className="py-4 px-6">Status</th>
+                    <th className="py-4 px-6">Details</th>
                   </tr>
-                )}
-                {filtered.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-xs text-gray-700 font-mono">
-                      {log.timestamp}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {log.user}
-                    </td>
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                      {log.action}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700">
-                      {log.module}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge
-                        variant="outline"
-                        className={statusConfig[log.status as keyof typeof statusConfig]?.color ?? ""}
-                      >
-                        {statusConfig[log.status as keyof typeof statusConfig]?.label ?? log.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">
-                      {log.details}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Activity Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <Card className="bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold text-gray-900">
-              Most Active Users
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {userActivity.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {item.user}
-                    </div>
-                    <div className="text-xs text-gray-500">{item.role}</div>
-                  </div>
-                  <Badge variant="outline">{item.actions} actions</Badge>
-                </div>
-              ))}
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-gray-400 text-sm font-medium">No activity logs found.</td>
+                    </tr>
+                  ) : (
+                    filtered.map((log) => (
+                      <tr key={log.id} className="hover:bg-blue-50/30 transition-colors">
+                        <td className="py-4 px-6 text-[11px] font-bold text-gray-400 font-mono">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="text-xs font-black text-gray-700">{log.user}</span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="text-xs font-bold text-[#003087]">{log.action}</span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <Badge variant="outline" className="text-[9px] uppercase font-black border-gray-200 text-gray-400">
+                            {log.module}
+                          </Badge>
+                        </td>
+                        <td className="py-4 px-6">
+                          <Badge className={`text-[9px] uppercase font-black border-none ${statusConfig[log.status as keyof typeof statusConfig]?.color ?? ""}`}>
+                            {log.status}
+                          </Badge>
+                        </td>
+                        <td className="py-4 px-6">
+                          <p className="text-xs text-gray-500 font-medium line-clamp-1 max-w-xs">{log.details}</p>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
-
-        <Card className="bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold text-gray-900">
-              Module Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {moduleActivity.map((item, index) => (
-                <div key={index}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      {item.module}
-                    </span>
-                    <span className="text-sm text-gray-600">{item.count}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
       </div>
     </div>
+  );
+}
+
+function LogStatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <Card className="border-none shadow-sm bg-white">
+      <CardContent className="pt-6 text-center">
+        <div className={`text-3xl font-black ${color}`}>{value}</div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{label}</p>
+      </CardContent>
+    </Card>
   );
 }
