@@ -146,26 +146,28 @@ export default function CityMunicipalityTable({ data, onView, onEdit, onArchive,
           Showing <span className="text-[#003087] font-black">{sortedData.length > 0 ? startIndex + 1 : 0}</span> - <span className="text-[#003087] font-black">{Math.min(startIndex + itemsPerPage, sortedData.length)}</span> of <span className="text-[#003087] font-black">{sortedData.length}</span> LGUs
         </span>
         <div className="flex gap-2">
-          <Button 
-            variant="outline"
-            size="sm"
-            disabled={currentPage === 1} 
-            onClick={() => setCurrentPage(p => p - 1)}
-            className="border-gray-200 font-black text-[10px] uppercase h-9 px-4 rounded-xl shadow-sm bg-white"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
-          </Button>
-          <Button 
-            variant="outline"
-            size="sm"
-            disabled={currentPage === totalPages || sortedData.length === 0} 
-            onClick={() => setCurrentPage(p => p + 1)}
-            className="border-gray-200 font-black text-[10px] uppercase h-9 px-4 rounded-xl shadow-sm bg-white"
-          >
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
+          {currentPage > 1 && (
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => p - 1)}
+              className="border-gray-200 font-black text-[10px] uppercase h-9 px-4 rounded-xl shadow-sm bg-white"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+          )}
+          {currentPage < totalPages && (
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => p + 1)}
+              className="border-gray-200 font-black text-[10px] uppercase h-9 px-4 rounded-xl shadow-sm bg-white"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          )}
         </div>
       </div>
     </div>
