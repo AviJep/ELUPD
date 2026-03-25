@@ -1,7 +1,10 @@
 import json
+from pathlib import Path
 from shapely.geometry import Polygon
 
-with open('frontend/src/app/utils/nir-boundaries.json') as f:
+BOUNDARIES_PATH = Path(__file__).resolve().parents[2] / "frontend" / "src" / "app" / "utils" / "nir-boundaries.json"
+
+with BOUNDARIES_PATH.open() as f:
     data = json.load(f)
 
 siq_names = {'Siquijor','Enrique Villanueva','Larena','Lazi','Maria','San Juan'}

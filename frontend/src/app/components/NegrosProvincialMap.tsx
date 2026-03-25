@@ -82,7 +82,7 @@ export function NegrosProvincialMap({ provincesData }: NegrosProvincialMapProps)
       };
     });
 
-    const pad = 10;
+    const pad = 4;
     return {
       features: feats,
       vbX: minX - pad,
@@ -101,11 +101,11 @@ export function NegrosProvincialMap({ provincesData }: NegrosProvincialMapProps)
   }
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full">
       <svg
         ref={svgRef}
         viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
-        className="w-full h-auto"
+        className="block w-full h-auto"
         style={{ maxHeight: 500 }}
       >
         <defs>

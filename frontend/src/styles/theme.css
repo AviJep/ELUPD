@@ -120,6 +120,18 @@
 }
 
 @layer base {
+  html,
+  body {
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  #root {
+    overflow-x: hidden;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }

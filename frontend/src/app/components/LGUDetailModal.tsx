@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Building2, ClipboardCheck, Home, MapPin, Calendar, User, FileText } from "lucide-react";
+import { Building2, ClipboardCheck, Home, MapPin, Calendar, User, FileText } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { LGUDirectory } from "../types/schema";
@@ -35,9 +35,6 @@ export function LGUDetailModal({ lgu, onClose }: LGUDetailModalProps) {
                 </Badge>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20 rounded-full">
-              <X className="h-6 w-6" />
-            </Button>
           </div>
           
           <div className="absolute right-[-20px] bottom-[-20px] opacity-10">

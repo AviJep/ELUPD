@@ -43,11 +43,19 @@ function normalizeGeoName(municity: string): string {
 }
 
 function normalizeClupName(name: string): string {
-  return name.replace(/\s+City$/i, "").trim().toLowerCase();
+  return matchKey(name);
 }
 
 function matchKey(name: string): string {
-  return name.replace(/\s+City$/i, "").trim().toLowerCase();
+  let normalized = name.replace(/\s*\(.*?\)\s*$/, "").trim();
+
+  normalized = normalized.replace(/^city\s+of\s+/i, "");
+  normalized = normalized.replace(/\s+city$/i, "");
+
+  const override = NAME_OVERRIDES[normalized];
+  normalized = override || normalized;
+
+  return normalized.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
 // ─── Types for processed features ───────────────────────────────────
@@ -126,7 +134,7 @@ export function NegrosIslandMap({
       const municity: string = f.properties?.municity ?? "";
       const province: string = f.properties?.province ?? "";
       const displayName = normalizeGeoName(municity);
-      const key = matchKey(displayName);
+      const key = matchKey(municity);
       const muni = muniByKey.get(key);
 
       const pathD = pathGen(f) || "";
@@ -158,7 +166,7 @@ export function NegrosIslandMap({
       d: paths.join(" "),
     }));
 
-    const pad = 10;
+    const pad = 4;
     return {
       features: feats,
       provinceOutlines: outlines,
@@ -202,7 +210,7 @@ export function NegrosIslandMap({
       <svg
         ref={svgRef}
         viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
-        className="w-full h-auto"
+        className="block w-full h-auto"
         style={{ maxHeight: 500 }}
       >
         <defs>

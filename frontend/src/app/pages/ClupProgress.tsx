@@ -11,6 +11,7 @@ import { LoadingState } from "../components/LoadingState";
 import { LGUDetailModal } from "../components/LGUDetailModal";
 import { Municipality, CLUPStatus } from "../types";
 import { LGUDirectory } from "../types/schema";
+import { PageShell } from "../components/PageShell";
 
 // Phase-specific colors for the Progress Map
 const PHASE_COLORS: Record<string, string> = {
@@ -89,7 +90,11 @@ export function ClupProgress() {
   if (isLoading) return <LoadingState />;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 flex flex-col gap-6">
+    <PageShell
+      title="CLUP Progress Tracking"
+      subtitle="Monitoring formulation phases and approval milestones across the region"
+    >
+      <div className="flex flex-col gap-6">
       {/* Header with Progress Overview */}
       <div className="flex flex-col md:flex-row gap-6 items-stretch">
         <div className="flex-1 bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center">
@@ -219,6 +224,7 @@ export function ClupProgress() {
       )}
 
       <LGUDetailModal lgu={null} onClose={() => {}} /> 
-    </div>
+      </div>
+    </PageShell>
   );
 }

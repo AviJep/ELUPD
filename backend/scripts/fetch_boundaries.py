@@ -7,6 +7,7 @@ import urllib.request
 import urllib.parse
 import sys
 import os
+from pathlib import Path
 
 # Overpass query: get all admin_level=4 boundaries (municipalities/cities)
 # in Negros Occidental, Negros Oriental, and Siquijor provinces
@@ -198,7 +199,7 @@ if __name__ == '__main__':
     print(f"\nTotal features: {len(geojson['features'])}")
     
     # Save output
-    out_path = os.path.join(os.path.dirname(__file__), 'frontend', 'src', 'app', 'utils', 'nir-boundaries.json')
+    out_path = Path(__file__).resolve().parents[2] / 'frontend' / 'src' / 'app' / 'utils' / 'nir-boundaries.json'
     with open(out_path, 'w') as f:
         json.dump(geojson, f)
     

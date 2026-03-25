@@ -1,273 +1,478 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { geoMercator, geoPath } from "d3-geo";
+import type { FeatureCollection } from "geojson";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { X, Plus, Trash2, Save, RefreshCw, Layers } from "lucide-react";
+import { X, Plus, Trash2, Save, RefreshCw } from "lucide-react";
 import { Badge } from "../components/ui/badge";
-import { useLgus } from "../LGUContext";
-import { NegrosIslandMap } from "../components/NegrosIslandMap";
-import { NegrosProvincialMap } from "../components/NegrosProvincialMap";
-import { LoadingState } from "../components/LoadingState";
-import { CLUPStatus, Municipality, CLUP_STATUS_LABELS } from "../types";
-import { LGUDirectory } from "../types/schema";
+import { nirMunicipalities } from "../utils/clup-data";
+import { CLUP_STATUS_COLORS, CLUP_STATUS_LABELS } from "../types";
+import type { CLUPStatus, Municipality } from "../types";
 
-const provinces = ['Negros Occidental', 'Negros Oriental', 'Siquijor'];
+// ─── Constants ───────────────────────────────────────────────────────
 
-// Map the new schema status to the legacy status for map colors
-const mapSchemaStatusToLegacy = (status: string | undefined): CLUPStatus => {
-  switch (status) {
-    case 'Review & Approval': return 'updated';
-    case 'CLUP Formulation': return 'for-updating';
-    case 'Prephase': return 'no-clup';
-    case 'Not Determined': return 'expired';
-    default: return 'no-clup';
-  }
+const NIR_PROVINCES = new Set(["Negros Occidental", "Negros Oriental", "Siquijor"]);
+const SVG_W = 520;
+const SVG_H = 780;
+const PAD = 20;
+
+const statusColors: Record<string, string> = {
+  ...CLUP_STATUS_COLORS,
+  expired: "#6b7280",
 };
 
-const mapLegacyToSchemaStatus = (status: CLUPStatus): string => {
-  switch (status) {
-    case 'updated': return 'Review & Approval';
-    case 'for-updating': return 'CLUP Formulation';
-    case 'no-clup': return 'Prephase';
-    case 'expired': return 'Not Determined';
-    default: return 'Prephase';
-  }
+// ─── Name normalizer (GeoJSON → CLUP data) ──────────────────────────
+
+const NAME_OVERRIDES: Record<string, string> = {
+  "Salvador Benedicto": "Don Salvador Benedicto",
+  "Sta. Catalina": "Santa Catalina",
 };
 
-const mapPDPFPToLegacy = (status: string | undefined): CLUPStatus => {
-  switch (status) {
-    case 'Approved': return 'updated';
-    case 'Adopted': return 'updated';
-    case 'For Updating': return 'for-updating';
-    case 'For Approval': return 'for-updating';
-    case 'No PDPFP': return 'no-clup';
-    default: return 'no-clup';
+function normalizeGeoName(municity: string): string {
+  const cityMatch = municity.match(/^City of (.+)$/i);
+  if (cityMatch) {
+    let base = cityMatch[1].replace(/\s*\(.*?\)\s*$/, "").trim();
+    return `${base} City`;
   }
-};
+  let name = municity.replace(/\s*\(.*?\)\s*$/, "").trim();
+  return NAME_OVERRIDES[name] || name;
+}
+
+function matchKey(name: string): string {
+  return name.replace(/\s+City$/i, "").trim().toLowerCase();
+}
+
+// ─── Processed feature type ─────────────────────────────────────────
+
+interface ProcessedFeature {
+  name: string;
+  displayName: string;
+  province: string;
+  pathD: string;
+  cx: number;
+  cy: number;
+  clupStatus: CLUPStatus;
+  yearApproved: number | null;
+  endYear: number | null;
+  riskInformed: boolean;
+  lastUpdate: string;
+  muniName: string;
+}
 
 export function MapIntelligence() {
-  const { lgus, isLoading, updateLgu } = useLgus();
+  const [nirGeoJSON, setNirGeoJSON] = useState<FeatureCollection | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [selectedLgu, setSelectedLgu] = useState<LGUDirectory | null>(null);
-  const [mapMode, setMapMode] = useState<"CLUP" | "PDPFP">("CLUP");
+  const [selectedFeature, setSelectedFeature] = useState<ProcessedFeature | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [selectedProvince, setSelectedProvince] = useState<string>("");
+  const [selectedCity, setSelectedCity] = useState<string>("");
+  const [barangays, setBarangays] = useState<string[]>([]);
+  const [hoveredName, setHoveredName] = useState<string | null>(null);
+  const [tooltipInfo, setTooltipInfo] = useState<{
+    x: number;
+    y: number;
+    feat: ProcessedFeature;
+  } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  // Transform LGUs for the map component
-  const mapData = useMemo((): Municipality[] => {
-    return lgus.map(l => ({
-      id: String(l.id),
-      name: l.city_municipality,
-      province: l.province,
-      clupStatus: mapMode === "CLUP" 
-        ? mapSchemaStatusToLegacy(l.clup_progress?.clup_status)
-        : mapPDPFPToLegacy(l.pdpfp_status?.latest_status),
-      yearApproved: l.pdpfp_status?.year_approved || null,
-      endYear: l.pdpfp_status?.end_year || null,
-      riskInformed: false,
-      integratedShelterPlan: false,
-      lastUpdate: l.pdpfp_status?.date_of_approval || ""
-    }));
-  }, [lgus, mapMode]);
+  // Fetch GeoJSON once
+  useEffect(() => {
+    fetch("/phl_municities.geojson")
+      .then((r) => r.json())
+      .then((data: FeatureCollection) => {
+        const filtered: FeatureCollection = {
+          type: "FeatureCollection",
+          features: data.features.filter((f) =>
+            NIR_PROVINCES.has(f.properties?.province ?? "")
+          ),
+        };
+        setNirGeoJSON(filtered);
+      });
+  }, []);
 
-  // Provincial Data for PDPFP
-  const provincialData = useMemo(() => {
-    return provinces.map(provName => {
-      const provinceLgus = lgus.filter(l => l.province === provName);
-      const pdpfpStatus = provinceLgus.find(l => l.pdpfp_status)?.pdpfp_status;
+  // Municipality lookup
+  const muniByKey = useMemo(() => {
+    const map = new Map<string, Municipality>();
+    for (const m of nirMunicipalities) {
+      map.set(matchKey(m.name), m);
+    }
+    return map;
+  }, []);
+
+  // Process features with d3-geo projection
+  const { allFeatures, provinceOutlines } = useMemo(() => {
+    if (!nirGeoJSON) return { allFeatures: [] as ProcessedFeature[], provinceOutlines: [] as { province: string; d: string }[] };
+
+    const projection = geoMercator().fitExtent(
+      [[PAD, PAD], [SVG_W - PAD, SVG_H - PAD]],
+      nirGeoJSON
+    );
+    const pathGen = geoPath(projection);
+
+    const feats: ProcessedFeature[] = nirGeoJSON.features.map((f) => {
+      const municity: string = f.properties?.municity ?? "";
+      const province: string = f.properties?.province ?? "";
+      const displayName = normalizeGeoName(municity);
+      const key = matchKey(displayName);
+      const muni = muniByKey.get(key);
+      const pathD = pathGen(f) || "";
+      const centroid = pathGen.centroid(f);
+
       return {
-        name: provName,
-        status: pdpfpStatus?.latest_status || "No PDPFP",
-        legacyStatus: mapPDPFPToLegacy(pdpfpStatus?.latest_status) as any,
+        name: municity,
+        displayName,
+        province,
+        pathD,
+        cx: centroid[0] || 0,
+        cy: centroid[1] || 0,
+        clupStatus: (muni?.clupStatus || "no-clup") as CLUPStatus,
+        yearApproved: muni?.yearApproved || null,
+        endYear: muni?.endYear || null,
+        riskInformed: muni?.riskInformed || false,
+        lastUpdate: muni?.lastUpdate || "",
+        muniName: muni?.name || displayName,
       };
     });
-  }, [lgus]);
 
-  const handleMunicipalityClick = useCallback((muni: Municipality) => {
-    const lgu = lgus.find(l => String(l.id) === muni.id);
-    if (lgu) {
-      setSelectedLgu(lgu);
+    const groups: Record<string, string[]> = {};
+    for (const fd of feats) {
+      const p = fd.province || "Unknown";
+      if (!groups[p]) groups[p] = [];
+      groups[p].push(fd.pathD);
+    }
+    const outlines = Object.entries(groups).map(([province, paths]) => ({
+      province,
+      d: paths.join(" "),
+    }));
+
+    return { allFeatures: feats, provinceOutlines: outlines };
+  }, [nirGeoJSON, muniByKey]);
+
+  // Filter features by CLUP status
+  const visibleFeatures = useMemo(() => {
+    if (filterStatus === "all") return allFeatures;
+    return allFeatures.filter((f) => f.clupStatus === filterStatus);
+  }, [filterStatus, allFeatures]);
+
+  const handleMouseEnter = useCallback(
+    (fd: ProcessedFeature, e: React.MouseEvent<SVGPathElement>) => {
+      setHoveredName(fd.name);
+      const svgRect = (
+        e.target as SVGElement
+      ).closest("svg")!.getBoundingClientRect();
+      setTooltipInfo({
+        x: (fd.cx / SVG_W) * svgRect.width + svgRect.left,
+        y: (fd.cy / SVG_H) * svgRect.height + svgRect.top,
+        feat: fd,
+      });
+    },
+    []
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredName(null);
+    setTooltipInfo(null);
+  }, []);
+
+  const handleFeatureClick = useCallback(
+    (fd: ProcessedFeature) => {
+      setSelectedFeature(fd);
       setPanelOpen(true);
-    }
-  }, [lgus]);
+      setSelectedProvince(fd.province);
+      setSelectedCity(fd.muniName);
+      setBarangays(Array.from({ length: 5 }, (_, i) => `Barangay ${i + 1}`));
+    },
+    []
+  );
 
-  const handleStatusChange = (newLegacyStatus: CLUPStatus) => {
-    if (!selectedLgu) return;
-    
-    const updated = {
-      ...selectedLgu,
-      clup_progress: {
-        ...selectedLgu.clup_progress,
-        id: selectedLgu.clup_progress?.id || 0,
-        lgu_id: selectedLgu.id,
-        clup_status: mapLegacyToSchemaStatus(newLegacyStatus),
-        current_phase: selectedLgu.clup_progress?.current_phase || 'Updated via Map Intelligence'
-      }
-    };
-    
-    setSelectedLgu(updated as LGUDirectory);
-  };
-
-  const handleSave = () => {
-    if (selectedLgu) {
-      updateLgu(selectedLgu);
-      setPanelOpen(false);
+  const handleAddBarangay = () => {
+    const name = prompt("Enter barangay name:");
+    if (name) {
+      setBarangays([...barangays, name]);
     }
   };
 
-  if (isLoading) return <LoadingState />;
+  const handleRemoveBarangay = (index: number) => {
+    setBarangays(barangays.filter((_, i) => i !== index));
+  };
 
   return (
-    <div className="h-[calc(100vh-64px)] relative flex bg-slate-50">
-      {/* Main Map Area */}
-      <div className="flex-1 relative flex items-center justify-center p-8">
-        <div className="w-full max-w-[1000px] bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col h-full max-h-[850px]">
-          <div className="bg-[#003087] text-white py-5 px-8 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Layers className="h-4 w-4 text-blue-200" />
-                <h2 className="text-xl font-black uppercase tracking-tight">Regional Intelligence</h2>
-              </div>
-              <p className="text-[10px] text-blue-200 font-bold uppercase tracking-widest opacity-80">Interactive {mapMode} Management System</p>
-            </div>
-            
-            <div className="flex bg-white/10 p-1 rounded-xl backdrop-blur-md">
-              <button 
-                onClick={() => setMapMode("CLUP")}
-                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                  mapMode === "CLUP" ? "bg-white text-[#003087] shadow-lg" : "text-white/60 hover:text-white"
-                }`}
-              >
-                CLUP
-              </button>
-              <button 
-                onClick={() => setMapMode("PDPFP")}
-                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                  mapMode === "PDPFP" ? "bg-white text-[#003087] shadow-lg" : "text-white/60 hover:text-white"
-                }`}
-              >
-                PDPFP
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex-1 relative bg-white p-8">
-            {mapMode === "CLUP" ? (
-              <NegrosIslandMap 
-                municipalities={mapData} 
-                onMunicipalityClick={handleMunicipalityClick}
-              />
-            ) : (
-              <NegrosProvincialMap 
-                provincesData={provincialData}
-              />
-            )}
-          </div>
+    <div className="h-[calc(100vh-64px)] relative flex items-center justify-center bg-slate-100">
+      {/* Static SVG Map — centred in viewport, no interactivity */}
+      <svg
+        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+        className="h-full max-h-[calc(100vh-80px)] w-auto select-none"
+        style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.15))" }}
+      >
+        <defs>
+          <filter id="miMapShadow" x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#00000025" />
+          </filter>
+        </defs>
 
-          <div className="bg-gray-50/50 px-8 py-4 border-t border-gray-100 flex items-center justify-center gap-8">
-            <LegendItem color="bg-green-500" label={mapMode === "CLUP" ? "Updated" : "Approved"} />
-            <LegendItem color="bg-orange-500" label="Updating" />
-            <LegendItem color="bg-red-500" label={mapMode === "CLUP" ? "No CLUP" : "No PDPFP"} />
+        <g filter="url(#miMapShadow)">
+          {visibleFeatures.map((fd) => {
+            const isHovered = hoveredName === fd.name;
+            const color = statusColors[fd.clupStatus] || "#6b7280";
+
+            return (
+              <path
+                key={fd.name}
+                d={fd.pathD}
+                fill={color}
+                stroke="#fff"
+                strokeWidth={isHovered ? 2.8 : 0.7}
+                strokeLinejoin="round"
+                opacity={isHovered ? 1 : 0.92}
+                style={{
+                  cursor: "pointer",
+                  transition: "opacity 0.15s, stroke-width 0.15s",
+                }}
+                onMouseEnter={(e) => handleMouseEnter(fd, e)}
+                onMouseLeave={handleMouseLeave}
+                onClick={() => handleFeatureClick(fd)}
+              />
+            );
+          })}
+
+          {/* Province outlines */}
+          {provinceOutlines.map(({ province, d }) => (
+            <path
+              key={province}
+              d={d}
+              fill="none"
+              stroke="#1e3a5f"
+              strokeWidth={1.6}
+              strokeLinejoin="round"
+              pointerEvents="none"
+            />
+          ))}
+        </g>
+      </svg>
+
+      {/* Floating tooltip (portal-style, positioned to viewport) */}
+      {tooltipInfo && (
+        <div
+          className="fixed pointer-events-none z-[2000] bg-gray-900/95 text-white text-xs rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm"
+          style={{
+            left: tooltipInfo.x,
+            top: tooltipInfo.y - 70,
+            transform: "translateX(-50%)",
+            minWidth: 180,
+          }}
+        >
+          <div className="font-semibold text-sm">{tooltipInfo.feat.muniName}</div>
+          <div className="text-gray-400 text-[11px]">{tooltipInfo.feat.province}</div>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span
+              className="w-2 h-2 rounded-full inline-block"
+              style={{ backgroundColor: statusColors[tooltipInfo.feat.clupStatus] }}
+            />
+            <span className="font-medium">
+              {CLUP_STATUS_LABELS[tooltipInfo.feat.clupStatus] || tooltipInfo.feat.clupStatus}
+            </span>
           </div>
+          {tooltipInfo.feat.yearApproved && (
+            <div className="text-gray-400 mt-0.5">
+              Approved: {tooltipInfo.feat.yearApproved}
+              {tooltipInfo.feat.endYear ? ` — ${tooltipInfo.feat.endYear}` : ""}
+            </div>
+          )}
+          <div className="text-gray-400">Last Update: {tooltipInfo.feat.lastUpdate}</div>
+          <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-gray-900/95 rotate-45" />
         </div>
-      </div>
+      )}
 
-      {/* Side Management Panel */}
-      {panelOpen && selectedLgu && (
+      {/* Legend */}
+      <Card className="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur shadow-lg w-56">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold">CLUP Status</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1.5">
+          <button
+            className={`flex items-center gap-2 p-2 rounded w-full text-left hover:bg-gray-50 transition-colors ${filterStatus === "all" ? "bg-gray-100 font-medium" : ""}`}
+            onClick={() => setFilterStatus("all")}
+          >
+            <div className="w-4 h-4 rounded bg-gradient-to-r from-green-500 via-orange-500 to-red-500" />
+            <span className="text-xs">All Municipalities</span>
+          </button>
+          {[
+            { key: "updated", label: "Updated", color: "#10b981" },
+            { key: "for-updating", label: "For Updating", color: "#f59e0b" },
+            { key: "no-clup", label: "No CLUP", color: "#ef4444" },
+            { key: "expired", label: "Expired", color: "#6b7280" },
+          ].map(({ key, label, color }) => (
+            <button
+              key={key}
+              className={`flex items-center gap-2 p-2 rounded w-full text-left hover:bg-gray-50 transition-colors ${filterStatus === key ? "bg-gray-100 font-medium" : ""}`}
+              onClick={() => setFilterStatus(key)}
+            >
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: color }} />
+              <span className="text-xs">{label}</span>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Side Panel */}
+      {panelOpen && (
         <>
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[1001]" onClick={() => setPanelOpen(false)} />
-          <div className="fixed right-0 top-0 bottom-0 w-[450px] bg-white shadow-2xl z-[1002] border-l border-gray-200 animate-in slide-in-from-right duration-500">
-            <div className="flex flex-col h-full">
-              <div className="p-8 bg-[#003087] text-white relative overflow-hidden">
-                <div className="relative z-10">
-                  <Badge className="bg-white/20 border-none text-white text-[10px] font-black uppercase mb-2 px-3 py-1">
-                    Management Mode
-                  </Badge>
-                  <h2 className="text-3xl font-black tracking-tight">{selectedLgu.city_municipality}</h2>
-                  <p className="text-blue-200 font-bold uppercase text-xs tracking-widest mt-1 opacity-80">{selectedLgu.province}</p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setPanelOpen(false)} className="absolute top-6 right-6 text-white hover:bg-white/20 rounded-full">
-                  <X className="h-6 w-6" />
+          <div
+            className="fixed inset-0 bg-black/30 z-[1001]"
+            onClick={() => setPanelOpen(false)}
+          />
+          <div className="fixed right-0 top-16 bottom-0 w-96 bg-white shadow-2xl z-[1002] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Region Management
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setPanelOpen(false)}
+                >
+                  <X className="h-5 w-5" />
                 </Button>
-                <div className="absolute right-[-20px] bottom-[-20px] opacity-10">
-                  <Layers className="h-48 w-48" />
-                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 space-y-10">
-                {/* Status Section */}
-                <div className="space-y-4">
-                  <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">CLUP Compliance Status</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['updated', 'for-updating', 'no-clup', 'expired'] as CLUPStatus[]).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => handleStatusChange(s)}
-                        className={`px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all border-2 ${
-                          mapSchemaStatusToLegacy(selectedLgu.clup_progress?.clup_status) === s
-                            ? 'bg-blue-50 border-[#003087] text-[#003087] shadow-md ring-4 ring-blue-50'
-                            : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
-                        }`}
+              {selectedFeature && (
+                <div className="space-y-6">
+                  {/* Selected Region Info */}
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardContent className="pt-4">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {selectedFeature.muniName}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {selectedFeature.province}
+                      </div>
+                      <Badge
+                        className="mt-2"
+                        style={{
+                          backgroundColor: statusColors[selectedFeature.clupStatus] || "#6b7280",
+                        }}
                       >
-                        {CLUP_STATUS_LABELS[s]}
-                      </button>
-                    ))}
+                        {CLUP_STATUS_LABELS[selectedFeature.clupStatus as CLUPStatus] || selectedFeature.clupStatus}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+
+                  {/* Province Selector */}
+                  <div className="space-y-2">
+                    <Label>Province</Label>
+                    <Select value={selectedProvince} onValueChange={setSelectedProvince}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select province" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Negros Occidental">Negros Occidental</SelectItem>
+                        <SelectItem value="Negros Oriental">Negros Oriental</SelectItem>
+                        <SelectItem value="Siquijor">Siquijor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* City/Municipality Selector */}
+                  <div className="space-y-2">
+                    <Label>City / Municipality</Label>
+                    <Select value={selectedCity} onValueChange={setSelectedCity}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select city or municipality" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Bacolod City">Bacolod City</SelectItem>
+                        <SelectItem value="Dumaguete City">Dumaguete City</SelectItem>
+                        <SelectItem value="Silay City">Silay City</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Barangay Management */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Barangays ({barangays.length})</Label>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddBarangay}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add
+                      </Button>
+                    </div>
+                    <div className="border rounded-lg max-h-48 overflow-y-auto">
+                      {barangays.length === 0 ? (
+                        <div className="p-4 text-sm text-gray-500 text-center">
+                          No barangays added
+                        </div>
+                      ) : (
+                        <div className="divide-y">
+                          {barangays.map((barangay, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 hover:bg-gray-50"
+                            >
+                              <span className="text-sm">{barangay}</span>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleRemoveBarangay(index)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status Selector */}
+                  <div className="space-y-2">
+                    <Label>CLUP Status</Label>
+                    <Select defaultValue={selectedFeature.clupStatus}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="updated">Updated</SelectItem>
+                        <SelectItem value="for-updating">For Updating</SelectItem>
+                        <SelectItem value="no-clup">No CLUP</SelectItem>
+                        <SelectItem value="expired">Expired</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Last Update */}
+                  <div className="space-y-2">
+                    <Label>Last Update</Label>
+                    <Input
+                      type="date"
+                      defaultValue={selectedFeature.lastUpdate || ""}
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-4">
+                    <Button className="flex-1" variant="default">
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </Button>
+                    <Button className="flex-1" variant="outline">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Sync Map
+                    </Button>
                   </div>
                 </div>
-
-                {/* Plan Info */}
-                <div className="space-y-4 pt-6 border-t border-gray-100">
-                  <Label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">PDPFP Data (Provincial)</Label>
-                  <div className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100 space-y-6">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-bold text-gray-500 uppercase">Approval Year</Label>
-                        <div className="bg-white p-3 rounded-xl border border-gray-200 font-black text-gray-700">{selectedLgu.pdpfp_status?.year_approved || 'N/A'}</div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-bold text-gray-500 uppercase">End Year</Label>
-                        <div className="bg-white p-3 rounded-xl border border-gray-200 font-black text-blue-600">{selectedLgu.pdpfp_status?.end_year || 'N/A'}</div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-bold text-gray-500 uppercase">Current Phase</Label>
-                      <div className="bg-white p-3 rounded-xl border border-gray-200 font-bold text-gray-600 italic">
-                        {selectedLgu.clup_progress?.current_phase || 'No Phase Indicated'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex gap-4">
-                  <RefreshCw className="h-6 w-6 text-amber-600 flex-shrink-0" />
-                  <p className="text-[11px] text-amber-800 leading-relaxed font-bold uppercase tracking-tight">
-                    Propagation: Changes made here will update the central database and reflect on all regional analytics instantly.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-8 border-t border-gray-100 bg-gray-50 flex gap-4">
-                <Button className="flex-1 bg-[#003087] hover:bg-[#002566] text-white font-black uppercase tracking-widest h-14 rounded-2xl shadow-xl shadow-blue-100" onClick={handleSave}>
-                  <Save className="h-5 w-5 mr-3" />
-                  Commit Changes
-                </Button>
-                <Button variant="outline" className="flex-1 font-black uppercase tracking-widest border-gray-300 h-14 rounded-2xl hover:bg-gray-100" onClick={() => setPanelOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
+              )}
             </div>
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className={`w-3 h-3 rounded-full ${color} shadow-sm`} />
-      <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">{label}</span>
     </div>
   );
 }

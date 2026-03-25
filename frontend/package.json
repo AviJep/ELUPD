@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite --host 127.0.0.1 --port 5173"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -71,6 +71,8 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@types/d3-delaunay": "^6.0.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "4.7.0",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"

@@ -4,17 +4,23 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import (
+    AnnexClupStatus,
+    AnnexPdpfpStatus,
     ArchivedRecord,
     Barangay,
     ComplianceRecord,
+    DefinitionStatus,
     Municipality,
     Province,
     SystemLog,
 )
 from .serializers import (
+    AnnexClupStatusSerializer,
+    AnnexPdpfpStatusSerializer,
     ArchivedRecordSerializer,
     BarangaySerializer,
     ComplianceRecordSerializer,
+    DefinitionStatusSerializer,
     MunicipalitySerializer,
     ProvinceSerializer,
     SystemLogSerializer,
@@ -49,6 +55,21 @@ class ArchivedRecordViewSet(viewsets.ModelViewSet):
 class SystemLogViewSet(viewsets.ModelViewSet):
     queryset = SystemLog.objects.all().order_by('-timestamp')
     serializer_class = SystemLogSerializer
+
+
+class AnnexClupStatusViewSet(viewsets.ModelViewSet):
+    queryset = AnnexClupStatus.objects.all().order_by('province', 'cityMunicipality')
+    serializer_class = AnnexClupStatusSerializer
+
+
+class AnnexPdpfpStatusViewSet(viewsets.ModelViewSet):
+    queryset = AnnexPdpfpStatus.objects.all().order_by('province')
+    serializer_class = AnnexPdpfpStatusSerializer
+
+
+class DefinitionStatusViewSet(viewsets.ModelViewSet):
+    queryset = DefinitionStatus.objects.all().order_by('className', 'subclass', 'id')
+    serializer_class = DefinitionStatusSerializer
 
 
 class HealthCheckView(APIView):

@@ -6,6 +6,7 @@ clipped to the Negros Oriental province boundary.
 import json
 import os
 import math
+from pathlib import Path
 
 # NIR municipality names (as they appear in OSM - without "City" suffix)
 NIR_NAMES = {
@@ -76,8 +77,7 @@ def create_hex_polygon(center_lon, center_lat, radius=0.08):
     return coords
 
 def main():
-    base = os.path.dirname(__file__)
-    in_path = os.path.join(base, 'frontend', 'src', 'app', 'utils', 'nir-boundaries.json')
+    in_path = Path(__file__).resolve().parents[2] / 'frontend' / 'src' / 'app' / 'utils' / 'nir-boundaries.json'
     
     with open(in_path) as f:
         data = json.load(f)
@@ -116,7 +116,7 @@ def main():
     # Build final GeoJSON
     output = {"type": "FeatureCollection", "features": nir_features}
     
-    out_path = os.path.join(base, 'frontend', 'src', 'app', 'utils', 'nir-boundaries.json')
+    out_path = in_path
     with open(out_path, 'w') as f:
         json.dump(output, f)
     

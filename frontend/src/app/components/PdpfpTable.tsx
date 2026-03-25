@@ -3,8 +3,8 @@ import { Button } from "./ui/button";
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Eye, 
-  Pencil, 
+  Eye,
+  Pencil,
   Archive,
   ArrowUpDown
 } from "lucide-react";
@@ -13,12 +13,21 @@ import { exportToCSV } from "../utils/csv-helper";
 
 export interface PdpfpStatus {
   id: string;
+  region: string;
   province: string;
-  latestStatus: string;
-  dateOfApproval: string | Date | null;
-  yearAdopted: number | null;
-  yearApproved: number | null;
+  incomeClassification: string | null;
+  version: string | null;
+  startYear: number | null;
   endYear: number | null;
+  resolutionApprovingPlan: string | null;
+  yearApproved: number | null;
+  yearAdopted: number | null;
+  status: string;
+  technicalAssistance: string | null;
+  supportFromOtherInstitutions: string | null;
+  withLocalShelterPlan: string | null;
+  institutions: string | null;
+  remarks: string | null;
 }
 
 interface PdpfpTableProps {
@@ -37,7 +46,7 @@ export default function PdpfpTable({ data, onView, onEdit, onArchive, onAdd, onI
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("province");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
   // Search & Filter
   const filteredData = useMemo(() => {
@@ -80,10 +89,10 @@ export default function PdpfpTable({ data, onView, onEdit, onArchive, onAdd, onI
   return (
     <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-200">
       <TableToolbar 
-        title="Provincial PDPFP Status"
+        title="Annex PDPFP Status (Excel Columns)"
         onSearch={setSearchTerm}
-        onAdd={onAdd || (() => {})}
-        onImport={onImport || (() => {})}
+        onAdd={onAdd}
+        onImport={onImport}
         onExport={handleExport}
       />
 
@@ -91,12 +100,12 @@ export default function PdpfpTable({ data, onView, onEdit, onArchive, onAdd, onI
         <table className="w-full text-sm text-left text-gray-700 whitespace-nowrap">
           <thead className="bg-gray-50/50 text-[#003087] font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
             <tr>
+              <SortableHeader label="Region" sortKey="region" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("region")} />
               <SortableHeader label="Province" sortKey="province" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("province")} />
-              <SortableHeader label="Latest Status" sortKey="latestStatus" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("latestStatus")} />
-              <SortableHeader label="Date of Approval" sortKey="dateOfApproval" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("dateOfApproval")} />
-              <SortableHeader label="Year Adopted" sortKey="yearAdopted" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("yearAdopted")} />
+              <SortableHeader label="Income Class" sortKey="incomeClassification" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("incomeClassification")} />
+              <SortableHeader label="Status" sortKey="status" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("status")} />
               <SortableHeader label="Year Approved" sortKey="yearApproved" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("yearApproved")} />
-              <SortableHeader label="End Year" sortKey="endYear" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("endYear")} />
+              <SortableHeader label="Year Adopted" sortKey="yearAdopted" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("yearAdopted")} />
               <th className="p-4 text-center">Actions</th>
             </tr>
           </thead>
@@ -104,34 +113,38 @@ export default function PdpfpTable({ data, onView, onEdit, onArchive, onAdd, onI
             {currentData.length > 0 ? (
               currentData.map((row) => (
                 <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
-                  <td className="p-4 font-black text-gray-900 group-hover:text-[#003087] transition-colors text-lg">{row.province}</td>
-                  <td className="p-4">
-                    <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase border shadow-sm ${getStatusColor(row.latestStatus)}`}>
-                      {row.latestStatus}
-                    </span>
-                  </td>
-                  <td className="p-4 text-xs font-mono text-gray-500">{String(row.dateOfApproval || '-')}</td>
-                  <td className="p-4 font-black text-gray-700">{row.yearAdopted || '-'}</td>
-                  <td className="p-4 font-black text-gray-700">{row.yearApproved || '-'}</td>
-                  <td className="p-4 font-black text-[#003087]">{row.endYear || '-'}</td>
+                  <td className="p-4 font-medium text-gray-500">{row.region}</td>
+                  <td className="p-4 font-black text-gray-900 group-hover:text-[#003087] transition-colors text-base">{row.province}</td>
+                  <td className="p-4 font-medium text-gray-700">{row.incomeClassification || '-'}</td>
+                  <td className="p-4 font-bold text-blue-700 text-sm">{row.status}</td>
+                  <td className="p-4 font-black text-gray-700 text-center">{row.yearApproved || '-'}</td>
+                  <td className="p-4 font-black text-gray-700 text-center">{row.yearAdopted || '-'}</td>
                   <td className="p-4">
                     <div className="flex justify-center gap-2">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50" onClick={() => onView?.(row)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50" onClick={() => onEdit?.(row)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:bg-red-50" onClick={() => onArchive?.(row)}>
-                        <Archive className="h-4 w-4" />
-                      </Button>
+                      {onView && (
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50" onClick={() => onView(row)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onEdit && (
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50" onClick={() => onEdit(row)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onArchive && (
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:bg-red-50" onClick={() => onArchive(row)}>
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="p-20 text-center text-gray-400 font-medium">No records found matching your criteria.</td>
+                <td colSpan={7} className="p-8 text-center text-gray-500">
+                  No records found
+                </td>
               </tr>
             )}
           </tbody>
@@ -143,28 +156,27 @@ export default function PdpfpTable({ data, onView, onEdit, onArchive, onAdd, onI
           Showing <span className="text-[#003087] font-black">{sortedData.length > 0 ? startIndex + 1 : 0}</span> - <span className="text-[#003087] font-black">{Math.min(startIndex + itemsPerPage, sortedData.length)}</span> of <span className="text-[#003087] font-black">{sortedData.length}</span> records
         </span>
         <div className="flex gap-2">
-          {currentPage > 1 && (
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(p => p - 1)}
-              className="border-gray-200 font-black text-[10px] uppercase h-9 px-4 rounded-xl shadow-sm bg-white"
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
-            </Button>
-          )}
-          {currentPage < totalPages && (
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(p => p + 1)}
-              className="border-gray-200 font-black text-[10px] uppercase h-9 px-4 rounded-xl shadow-sm bg-white"
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-xs font-semibold text-gray-600 flex items-center">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages || totalPages === 0}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>
@@ -183,17 +195,3 @@ function SortableHeader({ label, sortKey, currentSort, order, onClick }: { label
   );
 }
 
-function getStatusColor(status: string) {
-  switch (status?.toLowerCase()) {
-    case 'approved':
-    case 'adopted':
-      return 'bg-green-50 text-green-700 border-green-100';
-    case 'for updating':
-    case 'for approval':
-      return 'bg-amber-50 text-amber-700 border-amber-100';
-    case 'no pdpfp':
-      return 'bg-red-50 text-red-700 border-red-100';
-    default:
-      return 'bg-gray-50 text-gray-700 border-gray-100';
-  }
-}

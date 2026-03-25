@@ -49,6 +49,20 @@ export function HousingMonitoring() {
     if (lgu) setSelectedLgu(lgu);
   };
 
+  const handleArchiveProject = async (item: HousingProject) => {
+    const lgu = lgus.find((entry) => entry.city_municipality === item.cityMunicipality && entry.province === item.province);
+    if (!lgu) return;
+
+    if (!window.confirm(`Archive project ${item.projectName}?`)) return;
+
+    const updatedLgu = {
+      ...lgu,
+      housing_projects: (lgu.housing_projects || []).filter((project) => String(project.id) !== item.id),
+    };
+
+    await updateLgu(updatedLgu);
+  };
+
   const handleSaveAdd = async () => {
     if (!newProject.projectName || !newProject.lguId) return alert("Please fill in required fields");
     
@@ -93,9 +107,7 @@ export function HousingMonitoring() {
           onView={handleView}
           onEdit={handleView}
           onArchive={(item) => {
-            if (window.confirm(`Archive project ${item.projectName}?`)) {
-              console.log("Archive project", item.id);
-            }
+            void handleArchiveProject(item);
           }}
           onAdd={() => setAddOpen(true)}
           onImport={importLgus}

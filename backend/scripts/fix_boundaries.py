@@ -7,6 +7,7 @@ Fix boundaries comprehensive:
 """
 import json
 import numpy as np
+from pathlib import Path
 from scipy.spatial import Voronoi
 from shapely.geometry import Polygon, MultiPolygon, box, Point, GeometryCollection
 from shapely.ops import unary_union
@@ -105,6 +106,8 @@ MISSING_NAMES = {
     'Ayungon', 'Bindoy', 'Canlaon', 'Guihulngan', 'Jimalalud',
     'La Libertad', 'Mabinay', 'Manjuyod', 'Tayasan', 'Vallehermoso'
 }
+
+BOUNDARIES_PATH = Path(__file__).resolve().parents[2] / "frontend" / "src" / "app" / "utils" / "nir-boundaries.json"
 
 
 def voronoi_finite_polygons_2d(vor, radius=None):
@@ -318,7 +321,7 @@ def fix_negros(data):
 
 
 def main():
-    with open('frontend/src/app/utils/nir-boundaries.json', 'r') as f:
+    with BOUNDARIES_PATH.open('r') as f:
         data = json.load(f)
 
     # Fix Siquijor: replace with clean Voronoi-based boundaries
@@ -335,7 +338,7 @@ def main():
     output = {"type": "FeatureCollection", "features": all_features}
     output_json = json.dumps(output, separators=(',', ':'))
 
-    with open('frontend/src/app/utils/nir-boundaries.json', 'w') as f:
+    with BOUNDARIES_PATH.open('w') as f:
         f.write(output_json)
 
     approx_count = sum(1 for f in all_features if f['properties'].get('approximate'))

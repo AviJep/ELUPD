@@ -3,8 +3,8 @@ import { Button } from "./ui/button";
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Eye, 
-  Pencil, 
+  Eye,
+  Pencil,
   Archive,
   ArrowUpDown
 } from "lucide-react";
@@ -13,16 +13,19 @@ import { exportToCSV } from "../utils/csv-helper";
 
 export interface ClupPdpfpStatus {
   id: string;
-  region: string;
-  province: string;
   cityMunicipality: string;
+  province: string;
+  planningStartYear: number | null;
+  planningEndYear: number | null;
+  resolutionNumber: string | null;
   clupStatus: string;
-  currentPhase: string;
-  pdpfpLatestStatus: string;
-  dateOfApproval: string | Date | null;
-  yearAdopted: number | null;
-  yearApproved: number | null;
-  endYear: number | null;
+  prePhase: number;
+  phase1: number;
+  phase2: number;
+  phase3: number;
+  phase4: number;
+  phase5: number;
+  currentProgress: string;
 }
 
 interface ClupPdpfpTableProps {
@@ -42,7 +45,7 @@ export default function ClupPdpfpTable({ data, onView, onEdit, onArchive, onAdd,
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("cityMunicipality");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
   // Search & Filter
   const filteredData = useMemo(() => {
@@ -92,10 +95,10 @@ export default function ClupPdpfpTable({ data, onView, onEdit, onArchive, onAdd,
   return (
     <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-200">
       <TableToolbar 
-        title="CLUP/PDPFP Status"
+        title="CLUP Progress (Excel Columns)"
         onSearch={setSearchTerm}
-        onAdd={onAdd || (() => {})}
-        onImport={onImport || (() => {})}
+        onAdd={onAdd}
+        onImport={onImport}
         onExport={handleExport}
         filterOptions={provinceOptions}
         onFilterChange={setProvinceFilter}
@@ -105,14 +108,12 @@ export default function ClupPdpfpTable({ data, onView, onEdit, onArchive, onAdd,
         <table className="w-full text-sm text-left text-gray-700 whitespace-nowrap">
           <thead className="bg-gray-50/50 text-[#003087] font-black uppercase text-[10px] tracking-widest border-b border-gray-100">
             <tr>
-              <SortableHeader label="Region" sortKey="region" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("region")} />
-              <SortableHeader label="Province" sortKey="province" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("province")} />
               <SortableHeader label="City/Municipality" sortKey="cityMunicipality" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("cityMunicipality")} />
+              <SortableHeader label="Province" sortKey="province" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("province")} />
               <SortableHeader label="CLUP Status" sortKey="clupStatus" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("clupStatus")} />
-              <SortableHeader label="Phase" sortKey="currentPhase" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("currentPhase")} />
-              <SortableHeader label="PDPFP Status" sortKey="pdpfpLatestStatus" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("pdpfpLatestStatus")} />
-              <SortableHeader label="Approved" sortKey="yearApproved" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("yearApproved")} />
-              <SortableHeader label="End Year" sortKey="endYear" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("endYear")} />
+              <SortableHeader label="Current Progress" sortKey="currentProgress" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("currentProgress")} />
+              <SortableHeader label="Planning Start Year" sortKey="planningStartYear" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("planningStartYear")} />
+              <SortableHeader label="Planning End Year" sortKey="planningEndYear" currentSort={sortKey} order={sortOrder} onClick={() => handleSort("planningEndYear")} />
               <th className="p-4 text-center">Actions</th>
             </tr>
           </thead>
@@ -120,36 +121,40 @@ export default function ClupPdpfpTable({ data, onView, onEdit, onArchive, onAdd,
             {currentData.length > 0 ? (
               currentData.map((row) => (
                 <tr key={row.id} className="hover:bg-blue-50/30 transition-colors group">
-                  <td className="p-4 font-medium text-gray-500">{row.region}</td>
-                  <td className="p-4 font-medium text-gray-600">{row.province}</td>
                   <td className="p-4 font-black text-gray-900 group-hover:text-[#003087] transition-colors">{row.cityMunicipality}</td>
+                  <td className="p-4 font-medium text-gray-600">{row.province}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-[10px] font-black uppercase border shadow-sm ${getStatusColor(row.clupStatus)}`}>
                       {row.clupStatus}
                     </span>
                   </td>
-                  <td className="p-4 font-medium text-gray-500 italic">{row.currentPhase}</td>
-                  <td className="p-4 font-bold text-blue-600/70">{row.pdpfpLatestStatus}</td>
-                  <td className="p-4 font-black text-gray-700">{row.yearApproved || '-'}</td>
-                  <td className="p-4 font-black text-[#003087]">{row.endYear || '-'}</td>
+                  <td className="p-4 font-medium text-gray-600">{row.currentProgress}</td>
+                  <td className="p-4 font-bold text-gray-700">{row.planningStartYear ?? '-'}</td>
+                  <td className="p-4 font-bold text-gray-700">{row.planningEndYear ?? '-'}</td>
                   <td className="p-4">
                     <div className="flex justify-center gap-2">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50" onClick={() => onView?.(row)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50" onClick={() => onEdit?.(row)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:bg-red-50" onClick={() => onArchive?.(row)}>
-                        <Archive className="h-4 w-4" />
-                      </Button>
+                      {onView && (
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50" onClick={() => onView(row)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onEdit && (
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50" onClick={() => onEdit(row)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onArchive && (
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:bg-red-50" onClick={() => onArchive(row)}>
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={9} className="p-20 text-center text-gray-400 font-medium">No records found matching your criteria.</td>
+                <td colSpan={7} className="p-20 text-center text-gray-400 font-medium">No records found matching your criteria.</td>
               </tr>
             )}
           </tbody>

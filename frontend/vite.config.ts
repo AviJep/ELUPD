@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite'
-import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
@@ -13,7 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // Alias @ to the src directory
-      '@': path.resolve(__dirname, './src'),
+      '@': '/src',
     },
   },
 
@@ -26,7 +25,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       // Proxy API calls to the backend during development to avoid CORS issues
-      '/api': 'http://localhost:8001'
+      '/api': 'http://127.0.0.1:8000'
     }
   }
 })

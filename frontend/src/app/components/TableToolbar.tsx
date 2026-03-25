@@ -6,9 +6,9 @@ import { exportToCSV, parseCSV } from "../utils/csv-helper";
 
 interface TableToolbarProps {
   onSearch: (value: string) => void;
-  onAdd: () => void;
-  onImport: (data: any[]) => void;
-  onExport: () => void;
+  onAdd?: () => void;
+  onImport?: (data: any[]) => void;
+  onExport?: () => void;
   filterOptions?: { label: string; value: string }[];
   onFilterChange?: (value: string) => void;
   title: string;
@@ -26,6 +26,7 @@ export function TableToolbar({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportClick = () => {
+    if (!onImport) return;
     fileInputRef.current?.click();
   };
 
@@ -36,7 +37,7 @@ export function TableToolbar({
       reader.onload = (event) => {
         const text = event.target?.result as string;
         const data = parseCSV(text);
-        onImport(data);
+        onImport?.(data);
       };
       reader.readAsText(file);
     }
@@ -51,18 +52,24 @@ export function TableToolbar({
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={onAdd} className="bg-[#003087] hover:bg-[#002566] text-white font-bold text-xs uppercase h-10 px-4 rounded-xl shadow-lg shadow-blue-100">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Record
-          </Button>
-          <Button variant="outline" onClick={handleImportClick} className="border-gray-200 font-bold text-xs uppercase h-10 px-4 rounded-xl hover:bg-gray-50">
-            <Upload className="h-4 w-4 mr-2 text-blue-600" />
-            Import CSV
-          </Button>
-          <Button variant="outline" onClick={onExport} className="border-gray-200 font-bold text-xs uppercase h-10 px-4 rounded-xl hover:bg-gray-50">
-            <Download className="h-4 w-4 mr-2 text-emerald-600" />
-            Export Data
-          </Button>
+          {onAdd && (
+            <Button onClick={onAdd} className="bg-[#003087] hover:bg-[#002566] text-white font-bold text-xs uppercase h-10 px-4 rounded-xl shadow-lg shadow-blue-100">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Record
+            </Button>
+          )}
+          {onImport && (
+            <Button variant="outline" onClick={handleImportClick} className="border-gray-200 font-bold text-xs uppercase h-10 px-4 rounded-xl hover:bg-gray-50">
+              <Upload className="h-4 w-4 mr-2 text-blue-600" />
+              Import CSV
+            </Button>
+          )}
+          {onExport && (
+            <Button variant="outline" onClick={onExport} className="border-gray-200 font-bold text-xs uppercase h-10 px-4 rounded-xl hover:bg-gray-50">
+              <Download className="h-4 w-4 mr-2 text-emerald-600" />
+              Export Data
+            </Button>
+          )}
           <input 
             type="file" 
             ref={fileInputRef} 

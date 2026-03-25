@@ -37,6 +37,34 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
+### Annex Data Import (Excel)
+
+The Django backend now includes workbook import support for the NIR annex sheets.
+
+Run the importer:
+
+```bash
+python manage.py import_annex_data
+```
+
+Optional custom workbook path:
+
+```bash
+python manage.py import_annex_data --file "../frontend/data/02_NIR_2026_Accomplishment.xlsx"
+```
+
+Imported tables:
+
+- `annex_clup_status` from `Annex 3.1_CLUP Status`
+- `annex_pdpfp_status` from `Annex 3.2_PDPFP Status`
+- `definition_status` from `Definition_Status`
+
+### Annex API Endpoints
+
+- `GET /api/annex-clup-status`
+- `GET /api/annex-pdpfp-status`
+- `GET /api/definition-status`
+
 ### Features
 
 - **CRUD API**: Fully functional endpoints for all data entities using Django Rest Framework.

@@ -1,9 +1,12 @@
 from rest_framework import serializers
 
 from .models import (
+    AnnexClupStatus,
+    AnnexPdpfpStatus,
     ArchivedRecord,
     Barangay,
     ComplianceRecord,
+    DefinitionStatus,
     Municipality,
     Province,
     SystemLog,
@@ -108,4 +111,22 @@ class ArchivedRecordSerializer(serializers.ModelSerializer):
 class SystemLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = SystemLog
+        fields = '__all__'
+
+
+class AnnexClupStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnnexClupStatus
+        fields = '__all__'
+
+
+class AnnexPdpfpStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnnexPdpfpStatus
+        fields = '__all__'
+
+
+class DefinitionStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DefinitionStatus
         fields = '__all__'

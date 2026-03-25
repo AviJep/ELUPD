@@ -26,16 +26,19 @@ export function ClupMonitoring() {
   const tableData = useMemo((): ClupStatus[] => {
     return lgus.map(l => ({
       id: String(l.id),
-      region: l.region,
-      province: l.province,
       cityMunicipality: l.city_municipality,
+      province: l.province,
+      planningStartYear: null,
+      planningEndYear: null,
+      resolutionNumber: null,
       clupStatus: l.clup_progress?.clup_status || 'Not Determined',
-      currentPhase: l.clup_progress?.current_phase || 'None Indicated',
-      pdpfpLatestStatus: l.pdpfp_status?.latest_status || 'No PDPFP',
-      dateOfApproval: l.pdpfp_status?.date_of_approval || null,
-      yearAdopted: l.pdpfp_status?.year_adopted || null,
-      yearApproved: l.pdpfp_status?.year_approved || null,
-      endYear: l.pdpfp_status?.end_year || null
+      prePhase: 0,
+      phase1: 0,
+      phase2: 0,
+      phase3: 0,
+      phase4: 0,
+      phase5: 0,
+      currentProgress: l.clup_progress?.current_phase || 'None Indicated',
     }));
   }, [lgus]);
 

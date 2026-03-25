@@ -2,5 +2,20 @@
 node_modules/
 frontend/node_modules/
 backend/node_modules/
+
+# local environments
 Environment/
+environment/
+.venv/
+
+# env files
 .env
+
+# build outputs and logs
+frontend/dist/
+backend/dist/
+frontend/build.log
+
+# temporary helper scripts
+backend/tmp-*.js
+backend/tmp-*.mjs

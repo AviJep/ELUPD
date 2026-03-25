@@ -3,8 +3,10 @@ import json
 import urllib.request
 import urllib.parse
 import os
+from pathlib import Path
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+BOUNDARIES_PATH = Path(__file__).resolve().parents[2] / 'frontend' / 'src' / 'app' / 'utils' / 'nir-boundaries.json'
 
 # These municipalities are in the interior of Negros Oriental and weren't found
 # Try different admin levels and also searching by name
@@ -130,8 +132,7 @@ for muni_name in MISSING:
                             print(f"  Found {muni_name} at admin_level={admin_level} with {len(simplified_rings)} ring(s)")
                             
                             # Load existing file and add
-                            out_path = os.path.join(os.path.dirname(__file__), 'frontend', 'src', 'app', 'utils', 'nir-boundaries.json')
-                            with open(out_path) as f:
+                            with open(BOUNDARIES_PATH) as f:
                                 geojson = json.load(f)
                             
                             if len(simplified_rings) == 1:
@@ -145,7 +146,7 @@ for muni_name in MISSING:
                                 "geometry": geometry
                             })
                             
-                            with open(out_path, 'w') as f:
+                            with open(BOUNDARIES_PATH, 'w') as f:
                                 json.dump(geojson, f)
                             
                             break  # Found it, no need to try other admin levels
@@ -158,9 +159,8 @@ for muni_name in MISSING:
         pass
 
 # Final check
-out_path = os.path.join(os.path.dirname(__file__), 'frontend', 'src', 'app', 'utils', 'nir-boundaries.json')
-with open(out_path) as f:
+with open(BOUNDARIES_PATH) as f:
     geojson = json.load(f)
 print(f"\nTotal features now: {len(geojson['features'])}")
-size_kb = os.path.getsize(out_path) / 1024
+size_kb = os.path.getsize(BOUNDARIES_PATH) / 1024
 print(f"File size: {size_kb:.1f} KB")
